@@ -24,6 +24,7 @@ extern "C" {
 #include "../../draw/lv_draw_label.h"
 #include "../../draw/lv_draw_line.h"
 #include "../../draw/lv_draw_triangle.h"
+#include "../../draw/lv_draw_buf.h"
 
 /*********************
  *      DEFINES
@@ -35,10 +36,24 @@ extern "C" {
 
 struct _lv_draw_vg_lite_unit_t;
 
+#if LV_USE_TXT_BATCH_RENDER
+typedef struct {
+    uint8_t *path;
+    uint32_t path_size;
+    uint32_t upload_size;
+    uint8_t *stroke_path;
+    uint32_t stroke_path_size;
+    uint32_t stroke_upload_size;
+} lv_vg_lite_path_build;
+#endif
+
+
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
 void lv_draw_buf_vg_lite_init_handlers(void);
+
+bool lv_draw_buf_clear_vg_lite(lv_draw_buf_t * draw_buf, const lv_area_t * area);
 
 void lv_draw_vg_lite_init(void);
 

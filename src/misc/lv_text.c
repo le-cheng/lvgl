@@ -108,6 +108,9 @@ void lv_text_get_size(lv_point_t * size_res, const char * text, const lv_font_t 
 void lv_text_get_size_attributes(lv_point_t * size_res, const char * text, const lv_font_t * font,
                                  lv_text_attributes_t * attributes)
 {
+#if LV_USE_TXT_BATCH_RENDER
+    bool ret = true;
+#endif
     uint32_t line_start     = 0;
     uint32_t new_line_start = 0;
     uint16_t letter_height  = 0;
@@ -144,12 +147,24 @@ void lv_text_get_size_attributes(lv_point_t * size_res, const char * text, const
                                       &text[line_start], new_line_start - line_start, font, attributes);
 
         size_res->x = LV_MAX(act_line_length, size_res->x);
+
+#if LV_USE_TXT_BATCH_RENDER
+        if ((ret) && (attributes->cb)) {
+            ret = attributes->cb(attributes->line_char_cnt, new_line_start - line_start, act_line_length, attributes->user_data);
+        }
+#endif
+
         line_start  = new_line_start;
     }
 
     /*Make the text one line taller if the last character is '\n' or '\r'*/
     if((line_start != 0) && (text[line_start - 1] == '\n' || text[line_start - 1] == '\r')) {
         size_res->y += letter_height + attributes->line_space;
+#if LV_USE_TXT_BATCH_RENDER
+        if ((ret) && (attributes->cb)) {
+            ret = attributes->cb(0, 0, 0, attributes->user_data);
+        }
+#endif
     }
 
     /*Correction with the last line space or set the height manually if the text is empty*/
@@ -224,7 +239,11 @@ bool lv_text_is_cmd(lv_text_cmd_state_t * state, uint32_t c)
 static uint32_t lv_text_get_next_word(const char * txt, const lv_font_t * font,
                                       int32_t letter_space, int32_t max_width,
                                       lv_text_flag_t flag, uint32_t * word_w_ptr,
-                                      lv_text_cmd_state_t * cmd_state)
+                                      lv_text_cmd_state_t * cmd_state
+#if LV_USE_TXT_BATCH_RENDER
+                                      , uint32_t * word_len_ptr
+#endif
+                                    )
 {
     if(txt == NULL || txt[0] == '\0') return 0;
     if(font == NULL) return 0;
@@ -301,6 +320,14 @@ static uint32_t lv_text_get_next_word(const char * txt, const lv_font_t * font,
     /*Entire Word fits in the provided space*/
     if(break_index == NO_BREAK_FOUND) {
         if(word_len == 0 || (letter == '\r' && letter_next == '\n')) i = i_next;
+#if LV_USE_TXT_BATCH_RENDER
+        if (0 == word_len) {
+            /* The beginning is "\n" or "\r" or breakchar */
+            *word_len_ptr = 1;
+        } else {
+            *word_len_ptr = word_len;
+        }
+#endif
         return i;
     }
 
@@ -334,7 +361,14 @@ static uint32_t lv_text_get_next_word(const char * txt, const lv_font_t * font,
     }
     return i;
 #else
+#if LV_USE_TXT_BATCH_RENDER
+    if(flag & LV_TEXT_FLAG_BREAK_ALL) {
+        *word_len_ptr = break_letter_count;
+        return break_index;
+    }
+#else
     if(flag & LV_TEXT_FLAG_BREAK_ALL) return break_index;
+#endif
     if(word_w_ptr != NULL) *word_w_ptr = 0; /*Return no word*/
     (void) break_letter_count;
     return 0;
@@ -364,6 +398,9 @@ uint32_t lv_text_get_next_line(const char * txt, uint32_t len,
         }
         if(i < len && txt[i] != '\0') i++;    /*To go beyond `\n`*/
         if(used_width) *used_width = -1;
+#if LV_USE_TXT_BATCH_RENDER
+        attributes->line_char_cnt = lv_text_encoded_get_char_id(txt, i);
+#endif
         return i;
     }
 
@@ -375,6 +412,11 @@ uint32_t lv_text_get_next_line(const char * txt, uint32_t len,
     uint32_t i = 0;                                        /*Iterating index into txt*/
     uint32_t max_width = attributes->max_width;
 
+#if LV_USE_TXT_BATCH_RENDER
+    attributes->line_char_cnt = 0;
+    uint32_t word_char_cnt;
+#endif
+
     while(i < len && txt[i] != '\0' && max_width > 0) {
         lv_text_flag_t word_flag = attributes->text_flags;
 
@@ -382,7 +424,11 @@ uint32_t lv_text_get_next_line(const char * txt, uint32_t len,
 
         uint32_t word_w = 0;
         uint32_t advance = lv_text_get_next_word(&txt[i], font, attributes->letter_space,
-                                                 max_width, word_flag, &word_w, &cmd_state);
+                                                 max_width, word_flag, &word_w, &cmd_state
+#if LV_USE_TXT_BATCH_RENDER
+                                                , &word_char_cnt
+#endif
+                                            );
         max_width -= word_w;
         line_w += word_w;
 
@@ -390,12 +436,18 @@ uint32_t lv_text_get_next_line(const char * txt, uint32_t len,
             break;
         }
 
+#if LV_USE_TXT_BATCH_RENDER
+        attributes->line_char_cnt += word_char_cnt;
+#endif
         i += advance;
 
         if(txt[0] == '\n' || txt[0] == '\r') break;
 
         if(txt[i] == '\n' || txt[i] == '\r') {
             i++;  /*Include the following newline in the current line*/
+#if LV_USE_TXT_BATCH_RENDER
+            attributes->line_char_cnt ++;
+#endif
             break;
         }
     }

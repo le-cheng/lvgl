@@ -409,6 +409,25 @@ void lv_draw_unit_send_event(const char * name, lv_event_code_t code, void * par
     LV_PROFILER_DRAW_END;
 }
 
+void lv_draw_unit_send_event_to_unit(lv_draw_unit_t* u, lv_event_code_t code, void * param)
+{
+    LV_PROFILER_DRAW_BEGIN;
+
+    lv_event_t event = { 0 };
+    event.code = code;
+    event.param = param;
+    if(u->event_cb) {
+        event.current_target = event.original_target = u;
+        LV_PROFILER_DRAW_BEGIN_TAG("event_cb");
+        LV_PROFILER_DRAW_BEGIN_TAG(u->name);
+        u->event_cb(&event);
+        LV_PROFILER_DRAW_END_TAG(u->name);
+        LV_PROFILER_DRAW_END_TAG("event_cb");
+    }
+
+    LV_PROFILER_DRAW_END;
+}
+
 void lv_layer_init(lv_layer_t * layer)
 {
     LV_ASSERT_NULL(layer);

@@ -61,6 +61,14 @@ static lv_indev_t * touchscreen_init(int fd);
  *      MACROS
  **********************/
 
+
+__attribute__((weak)) int rd_lvgl_session_input_raw(const void *data, size_t len)
+{
+    LV_UNUSED(data);
+    LV_UNUSED(len);
+    return 0;
+}
+
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
@@ -145,6 +153,11 @@ static void conv_touch_sample(lv_indev_t * drv,
 static bool touchscreen_read_sample(int fd, struct touch_sample_s * sample)
 {
     int nbytes = read(fd, sample, sizeof(struct touch_sample_s));
+
+    if(nbytes >= (int)sizeof(struct touch_sample_s)) {
+        rd_lvgl_session_input_raw(sample, (size_t)nbytes);
+    }
+
     return nbytes == sizeof(struct touch_sample_s);
 }
 

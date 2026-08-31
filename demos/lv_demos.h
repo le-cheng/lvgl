@@ -49,6 +49,14 @@ typedef struct _lv_demo_args lv_demo_args_t;
 #include "gltf/lv_demo_gltf.h"
 #endif
 
+#if LV_USE_DEMO_SMARTWATCH
+#include "smartwatch/lv_demo_smartwatch.h"
+#endif
+
+#if LV_USE_DEMO_LITEWATCH
+#include "litewatch/lv_demo_litewatch.h"
+#endif
+
 /*********************
  *      DEFINES
  *********************/

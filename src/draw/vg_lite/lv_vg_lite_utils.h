@@ -86,6 +86,26 @@ struct _lv_draw_vg_lite_unit_t;
 
 /* Print info */
 
+#if LV_USE_TXT_BATCH_RENDER
+
+void lv_vg_lite_check_path_capa(void *param);
+
+void lv_vg_lite_add_char_path(void *param);
+
+void lv_vg_lite_build_draw_unit_path(void *param);
+
+void lv_vg_lite_delete_path_mng(void *in);
+
+void lv_vg_lite_delete_draw_unit_path(void *in);
+
+void lv_vg_lite_draw_unit_path(void *param);
+
+void lv_vg_lite_path_cmd_handle(void *param);
+
+void lv_vg_lite_event_set_scissor_area(void * in);
+
+#endif
+
 void lv_vg_lite_dump_info(void);
 
 void lv_vg_lite_error_dump_info(vg_lite_error_t error);
@@ -182,6 +202,8 @@ void lv_vg_lite_set_scissor_area(struct _lv_draw_vg_lite_unit_t * u, const lv_ar
 void lv_vg_lite_disable_scissor(void);
 
 void lv_vg_lite_flush(struct _lv_draw_vg_lite_unit_t * u);
+
+void lv_vg_lite_force_flush(struct _lv_draw_vg_lite_unit_t * u);
 
 void lv_vg_lite_finish(struct _lv_draw_vg_lite_unit_t * u);
 

@@ -43,6 +43,21 @@ typedef struct {
     uint8_t frag_pct;   /**< Amount of fragmentation */
 } lv_mem_monitor_t;
 
+typedef void * (*lv_malloc_cb_t)(size_t size);
+typedef void (*lv_free_cb_t)(void *ptr);
+typedef void * (*lv_malloc_align_cb_t)(size_t boundary, size_t size);
+typedef void (*lv_free_align_cb_t)(void *ptr);
+typedef void (*lv_cache_operation_cb_t)(void *ptr, size_t size);
+
+typedef struct {
+    lv_malloc_cb_t  malloc_cb;
+    lv_free_cb_t    free_cb;
+    lv_malloc_align_cb_t malloc_align_cb;
+    lv_free_align_cb_t   free_align_cb;
+    lv_cache_operation_cb_t  clean_cache_cb;
+    lv_cache_operation_cb_t  invalidate_cache_cb;
+} lv_mem_ops_t;
+
 /**********************
  * GLOBAL PROTOTYPES
  **********************/

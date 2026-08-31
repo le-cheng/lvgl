@@ -1707,7 +1707,9 @@
 /** Will be added where memory needs to be aligned (with -Os data might not be aligned to boundary by default).
  *  E.g. __attribute__((aligned(4)))*/
 #ifndef LV_ATTRIBUTE_MEM_ALIGN
-    #ifdef CONFIG_LV_ATTRIBUTE_MEM_ALIGN
+    #if LV_ATTRIBUTE_MEM_ALIGN_SIZE > 1
+        #define LV_ATTRIBUTE_MEM_ALIGN __attribute__((aligned(LV_ATTRIBUTE_MEM_ALIGN_SIZE)))
+    #elif defined(CONFIG_LV_ATTRIBUTE_MEM_ALIGN)
         #define LV_ATTRIBUTE_MEM_ALIGN CONFIG_LV_ATTRIBUTE_MEM_ALIGN
     #else
         #define LV_ATTRIBUTE_MEM_ALIGN
@@ -3221,6 +3223,31 @@
     #endif
 #endif
 
+/* use batch text path data to render */
+#ifndef LV_USE_TXT_BATCH_RENDER
+    #if LV_USE_FREETYPE
+        #ifdef CONFIG_LV_USE_TXT_BATCH_RENDER
+            #define LV_USE_TXT_BATCH_RENDER CONFIG_LV_USE_TXT_BATCH_RENDER
+        #else
+            #define LV_USE_TXT_BATCH_RENDER 1
+        #endif
+    #else
+        #define LV_USE_TXT_BATCH_RENDER 0
+    #endif
+#endif
+
+#ifndef LV_USE_FREETYPE_MEM_FACE
+    #if LV_USE_FREETYPE
+        #ifdef CONFIG_LV_USE_FREETYPE_MEM_FACE
+            #define LV_USE_FREETYPE_MEM_FACE CONFIG_LV_USE_FREETYPE_MEM_FACE
+        #else
+            #define LV_USE_FREETYPE_MEM_FACE 1
+        #endif
+    #else
+        #define LV_USE_FREETYPE_MEM_FACE 0
+    #endif
+#endif
+
 /** Built-in TTF decoder */
 #ifndef LV_USE_TINY_TTF
     #ifdef CONFIG_LV_USE_TINY_TTF
@@ -4237,6 +4264,15 @@
         #endif
     #endif
 
+    /** Driver for /dev/buttons */
+    #ifndef LV_USE_NUTTX_BUTTONS
+        #ifdef CONFIG_LV_USE_NUTTX_BUTTONS
+            #define LV_USE_NUTTX_BUTTONS CONFIG_LV_USE_NUTTX_BUTTONS
+        #else
+            #define LV_USE_NUTTX_BUTTONS    0
+        #endif
+    #endif
+
     /** Mouse movement step (pixels) */
     #ifndef LV_USE_NUTTX_MOUSE_MOVE_STEP
         #ifdef LV_KCONFIG_PRESENT
@@ -4789,6 +4825,15 @@
             #define LV_USE_DEMO_SMARTWATCH CONFIG_LV_USE_DEMO_SMARTWATCH
         #else
             #define LV_USE_DEMO_SMARTWATCH      0
+        #endif
+    #endif
+
+    /* Lite watch demo */
+    #ifndef LV_USE_DEMO_LITEWATCH
+        #ifdef CONFIG_LV_USE_DEMO_LITEWATCH
+            #define LV_USE_DEMO_LITEWATCH CONFIG_LV_USE_DEMO_LITEWATCH
+        #else
+            #define LV_USE_DEMO_LITEWATCH       0
         #endif
     #endif
 #endif /* LV_BUILD_DEMOS */

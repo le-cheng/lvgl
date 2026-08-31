@@ -11,7 +11,7 @@
 #include "../../../lvgl.h"
 
 #if LV_USE_NUTTX
-
+#include <stdlib.h>
 #include "../../draw/lv_draw_buf_private.h"
 #include "../../core/lv_global.h"
 
@@ -63,6 +63,14 @@ void lv_nuttx_cache_init(void)
     handlers = font_draw_buf_handlers;
     handlers->invalidate_cache_cb = invalidate_cache;
     handlers->flush_cache_cb = flush_cache;
+
+    lv_mem_ops_t *mem_ops = &(LV_GLOBAL_DEFAULT()->mem_hw_ops_cb);
+    mem_ops->malloc_cb = malloc;
+    mem_ops->free_cb = free;
+    mem_ops->malloc_align_cb = memalign;
+    mem_ops->free_align_cb = free;
+    mem_ops->clean_cache_cb = NULL;
+    mem_ops->invalidate_cache_cb = NULL;
 }
 
 void lv_nuttx_cache_deinit(void)

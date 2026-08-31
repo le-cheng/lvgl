@@ -984,6 +984,11 @@ vg_lite_blend_t lv_vg_lite_blend_mode(lv_blend_mode_t blend_mode, bool has_pre_m
             case LV_BLEND_MODE_MULTIPLY: /**< Multiply the foreground and background*/
                 return VG_LITE_BLEND_MULTIPLY_LVGL;
 
+#ifdef CONFIG_GPU_VGLITE_GC865
+            case LV_BLEND_MODE_DIFFERENCE: /**< Absolute difference between foreground and background*/
+                return VG_LITE_BLEND_DIFFERENCE_LVGL;
+#endif
+
             default:
                 return VG_LITE_BLEND_NONE;
         }
@@ -1388,6 +1393,20 @@ void lv_vg_lite_flush(struct _lv_draw_vg_lite_unit_t * u)
 
     u->flush_count = 0;
     LV_PROFILER_DRAW_END;
+}
+
+void lv_vg_lite_force_flush(struct _lv_draw_vg_lite_unit_t * u)
+{
+#if LV_VG_LITE_FLUSH_MAX_COUNT
+    vg_lite_uint32_t is_gpu_idle = 0;
+    LV_VG_LITE_CHECK_ERROR(vg_lite_get_parameter(VG_LITE_GPU_IDLE_STATE, 1, (vg_lite_pointer)&is_gpu_idle), {});
+    if(is_gpu_idle) {
+        u->flush_count = LV_VG_LITE_FLUSH_MAX_COUNT;
+        lv_vg_lite_flush(u);
+    }
+#else
+    lv_vg_lite_flush(u);
+#endif
 }
 
 void lv_vg_lite_finish(struct _lv_draw_vg_lite_unit_t * u)

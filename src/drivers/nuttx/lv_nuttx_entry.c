@@ -18,6 +18,7 @@
 #include "lv_nuttx_image_cache.h"
 #include "../../core/lv_global.h"
 #include "lv_nuttx_profiler.h"
+#include "lv_nuttx_button.h"
 #include "lv_nuttx_mouse.h"
 #include "../../../lvgl.h"
 
@@ -121,6 +122,10 @@ void lv_nuttx_dsc_init(lv_nuttx_dsc_t * dsc)
     dsc->mouse_path = "/dev/mouse0";
 #endif
 
+#if LV_USE_NUTTX_BUTTONS
+    dsc->button_path = "/dev/buttons";
+#endif
+
 #if LV_USE_NUTTX_TRACE_FILE
     dsc->trace_path = LV_NUTTX_TRACE_FILE_PATH;
 #endif
@@ -197,6 +202,15 @@ void lv_nuttx_init(const lv_nuttx_dsc_t * dsc, lv_nuttx_result_t * result)
             }
         }
 #endif
+
+#if LV_USE_NUTTX_BUTTONS
+        if(dsc->button_path) {
+            lv_indev_t * indev = lv_nuttx_button_create(dsc->button_path);
+            if(result) {
+                result->button_indev = indev;
+            }
+        }
+#endif
     }
 
 #else
@@ -261,6 +275,11 @@ void lv_nuttx_deinit(lv_nuttx_result_t * result)
         if(result->utouch_indev) {
             lv_indev_delete(result->utouch_indev);
             result->utouch_indev = NULL;
+        }
+
+        if(result->button_indev) {
+            lv_indev_delete(result->button_indev);
+            result->button_indev = NULL;
         }
     }
 #else

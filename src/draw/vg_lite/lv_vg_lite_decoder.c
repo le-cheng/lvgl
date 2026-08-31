@@ -499,7 +499,7 @@ static lv_result_t decoder_open_file_index(lv_draw_buf_t * dest_buf,
 
     src_temp = lv_malloc(src_header->stride);
     if(!src_temp) {
-        LV_LOG_ERROR("malloc src_stride: %" LV_PRIu32 " failed", src_header->stride);
+        LV_LOG_ERROR("malloc src_stride: %" LV_PRIu32 " failed", (uint32_t)src_header->stride);
         LV_PROFILER_DECODER_END;
         return LV_RESULT_INVALID;
     }
@@ -534,7 +534,7 @@ static lv_result_t decoder_open_file_alpha(lv_draw_buf_t * dest_buf,
 
     uint8_t * src_temp = lv_malloc(src_header->stride);
     if(!src_temp) {
-        LV_LOG_ERROR("malloc src_stride: %" LV_PRIu32 " failed", src_header->stride);
+        LV_LOG_ERROR("malloc src_stride: %" LV_PRIu32 " failed", (uint32_t)src_header->stride);
         LV_PROFILER_DECODER_END;
         return LV_RESULT_INVALID;
     }
@@ -568,7 +568,7 @@ static lv_result_t decoder_open_file_rgb(lv_draw_buf_t * dest_buf,
 
     void * src_temp = lv_malloc(src_header->stride);
     if(!src_temp) {
-        LV_LOG_ERROR("malloc src_stride: %" LV_PRIu32 " failed", src_header->stride);
+        LV_LOG_ERROR("malloc src_stride: %" LV_PRIu32 " failed", (uint32_t)src_header->stride);
         LV_PROFILER_DECODER_END;
         return LV_RESULT_INVALID;
     }

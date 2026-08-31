@@ -1318,6 +1318,9 @@
     /** Driver for /dev/mouse */
     #define LV_USE_NUTTX_MOUSE    0
 
+    /** Driver for /dev/buttons */
+    #define LV_USE_NUTTX_BUTTONS    0
+
     /** Mouse movement step (pixels) */
     #define LV_USE_NUTTX_MOUSE_MOVE_STEP    1
 

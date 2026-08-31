@@ -35,6 +35,10 @@
 typedef struct {
     char * pathname;
     int ref_cnt;
+#if LV_USE_FREETYPE_MEM_FACE
+    void *mem_ptr;
+    uint32_t mem_size;
+#endif
 } face_id_node_t;
 
 /**********************
@@ -342,6 +346,35 @@ static void lv_freetype_cleanup(lv_freetype_context_t * ctx)
     }
 }
 
+#if LV_USE_FREETYPE_MEM_FACE
+void * lv_freetype_read_ttf_to_mem(const char * path, uint32_t *mem_size)
+{
+    lv_fs_file_t file;
+    lv_fs_res_t fs_res = lv_fs_open(&file, path, LV_FS_MODE_RD);
+    if(fs_res != LV_FS_RES_OK) {
+        LV_LOG_WARN("read ttf open file failed: %d", fs_res);
+        return NULL;
+    }
+    uint32_t size;
+    lv_fs_seek(&file, 0, LV_FS_SEEK_END);
+    lv_fs_tell(&file, &size);
+    lv_fs_seek(&file, 0, LV_FS_SEEK_SET);
+
+    void *buf = lv_malloc(size);
+    if(buf) {
+        fs_res = lv_fs_read(&file, buf, size, NULL);
+        if(fs_res != LV_FS_RES_OK) {
+            lv_free(buf);
+            buf = NULL;
+        }
+    }
+    lv_fs_close(&file);
+    if (mem_size) *mem_size = size;
+
+    return buf;
+}
+#endif
+
 static FTC_FaceID lv_freetype_req_face_id(lv_freetype_context_t * ctx, const char * pathname)
 {
     size_t len = lv_strlen(pathname);
@@ -354,6 +387,9 @@ static FTC_FaceID lv_freetype_req_face_id(lv_freetype_context_t * ctx, const cha
     LV_LL_READ(ll_p, node) {
         if(strcmp(node->pathname, pathname) == 0) {
             node->ref_cnt++;
+#if LV_USE_FREETYPE_MEM_FACE
+            ctx->working_face_node = node;
+#endif
             LV_LOG_INFO("reuse face_id: %s, ref_cnt = %d", node->pathname, node->ref_cnt);
             return node->pathname;
         }
@@ -382,6 +418,10 @@ static FTC_FaceID lv_freetype_req_face_id(lv_freetype_context_t * ctx, const cha
     LV_LOG_INFO("add face_id: %s", node->pathname);
 
     node->ref_cnt = 1;
+#if LV_USE_FREETYPE_MEM_FACE
+    node->mem_ptr = lv_freetype_read_ttf_to_mem(pathname, &(node->mem_size));
+    ctx->working_face_node = node;
+#endif
     return node->pathname;
 }
 
@@ -396,6 +436,9 @@ static void lv_freetype_drop_face_id(lv_freetype_context_t * ctx, FTC_FaceID fac
             if(node->ref_cnt == 0) {
                 LV_LOG_INFO("drop face_id: %s", node->pathname);
                 lv_ll_remove(ll_p, node);
+#if LV_USE_FREETYPE_MEM_FACE
+                lv_free(node->mem_ptr);
+#endif
                 lv_free(node->pathname);
                 lv_free(node);
             }
@@ -417,11 +460,26 @@ static bool cache_node_cache_create_cb(lv_freetype_cache_node_t * node, void * u
 
     /* Cache miss, load face */
     FT_Face face;
+#if LV_USE_FREETYPE_MEM_FACE
+    face_id_node_t * face_node = ctx->working_face_node;
+    if (face_node && (face_node->mem_ptr)) {
+        FT_Error error = FT_New_Memory_Face(ctx->library, (const FT_Byte*)(face_node->mem_ptr), face_node->mem_size, 0, &face);
+        if(error) {
+            FT_ERROR_MSG("FT_New_Mem_Face", error);
+            return false;
+        }
+        goto new_face_successfully;
+    }
+#endif
     FT_Error error = FT_New_Face(ctx->library, node->pathname, 0, &face);
     if(error) {
         FT_ERROR_MSG("FT_New_Face", error);
         return false;
     }
+
+#if LV_USE_FREETYPE_MEM_FACE
+new_face_successfully:
+#endif
 
     node->ref_size = LV_FREETYPE_OUTLINE_REF_SIZE_DEF;
 

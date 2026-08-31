@@ -250,7 +250,29 @@ static int32_t draw_evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task)
 #if LV_VG_LITE_USE_BOX_SHADOW
         case LV_DRAW_TASK_TYPE_BOX_SHADOW:
 #endif
+#ifdef CONFIG_GPU_VGLITE_GC265
+            break;
+
+        case LV_DRAW_TASK_TYPE_LAYER: {
+                const lv_draw_image_dsc_t * draw_dsc = task->draw_dsc;
+                /* bitmap_mask_src is applied on-GPU inside lv_draw_vg_lite_layer (DST_IN) */
+                switch(draw_dsc->blend_mode) {
+                    case LV_BLEND_MODE_NORMAL:
+                    case LV_BLEND_MODE_ADDITIVE:
+                    case LV_BLEND_MODE_SUBTRACTIVE:
+                    case LV_BLEND_MODE_MULTIPLY:
+                        break;
+                    default:
+                        // if(draw_dsc->blend_mode > LV_BLEND_MODE_DIFFERENCE)
+                        // LV_LOG_WARN("Unsupported blend mode (%d) in LV_DRAW_TASK_TYPE_LAYER, fallback to SW",
+                        //             (int)draw_dsc->blend_mode);
+                        return 0;
+                }
+            }
+            break;
+#else
         case LV_DRAW_TASK_TYPE_LAYER:
+#endif
         case LV_DRAW_TASK_TYPE_LINE:
         case LV_DRAW_TASK_TYPE_TRIANGLE:
         case LV_DRAW_TASK_TYPE_MASK_RECTANGLE:
@@ -331,6 +353,48 @@ static void draw_event_cb(lv_event_t * e)
         case LV_EVENT_HIT_TEST:
             lv_vg_lite_dump_info();
             break;
+#if LV_USE_TXT_BATCH_RENDER
+        case LV_EVENT_ADD_CHAR_PATH:
+            {
+                lv_vg_lite_add_char_path(lv_event_get_param(e));
+                break;
+            }
+        case LV_EVENT_CHECK_PATH_CAPA:
+            {
+                lv_vg_lite_check_path_capa(lv_event_get_param(e));
+                break;
+            }
+        case LV_EVENT_DELETE_UNIT_PATH:
+            {
+                lv_vg_lite_delete_draw_unit_path(lv_event_get_param(e));
+                break;
+            }
+        case LV_EVENT_DELETE_PATH_MNG:
+            {
+                lv_vg_lite_delete_path_mng(lv_event_get_param(e));
+                break;
+            }
+        case LV_EVENT_BUILD_PATH:
+            {
+                lv_vg_lite_build_draw_unit_path(lv_event_get_param(e));
+                break;
+            }
+        case LV_EVENT_DRAW_BUILD_PATH:
+            {
+                lv_vg_lite_draw_unit_path(lv_event_get_param(e));
+                break;
+            }
+        case LV_EVENT_SET_SCISSOR_AREA:
+            {
+                lv_vg_lite_event_set_scissor_area(lv_event_get_param(e));
+                break;
+            }
+        case LV_EVENT_PATH_CMD:
+            {
+                lv_vg_lite_path_cmd_handle(lv_event_get_param(e));
+                break;
+            }
+#endif
         default:
             break;
     }

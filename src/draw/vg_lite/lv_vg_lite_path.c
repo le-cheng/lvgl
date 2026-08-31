@@ -153,6 +153,12 @@ vg_lite_path_t * lv_vg_lite_path_get_path(lv_vg_lite_path_t * path)
     return &path->base;
 }
 
+uint8_t lv_vg_lite_path_get_path_format_len(lv_vg_lite_path_t * path)
+{
+    LV_ASSERT_NULL(path);
+    return path->format_len;
+}
+
 void lv_vg_lite_path_set_bounding_box(lv_vg_lite_path_t * path,
                                       float min_x, float min_y,
                                       float max_x, float max_y)

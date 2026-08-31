@@ -274,7 +274,13 @@ void lv_label_ins_text(lv_obj_t * obj, uint32_t pos, const char * txt);
  */
 void lv_label_cut_text(lv_obj_t * obj, uint32_t pos, uint32_t cnt);
 
-
+/**
+ * Disable label batch text render func
+ * @param obj       pointer to a label object
+ */
+#if LV_USE_TXT_BATCH_RENDER
+void lv_label_disable_batch_render(lv_obj_t * obj);
+#endif
 
 /**********************
  *      MACROS

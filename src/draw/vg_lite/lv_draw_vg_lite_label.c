@@ -21,12 +21,16 @@
 #include "../../libs/freetype/lv_freetype_private.h"
 #include "../lv_draw_label_private.h"
 #include "../lv_draw_image_private.h"
+#include "../../core/lv_global.h"
 
 /*********************
  *      DEFINES
  *********************/
 
 #define PATH_DATA_COORD_FORMAT VG_LITE_S16
+#if LV_USE_TXT_BATCH_RENDER
+#define UNIT_PATH_MEM_SIZE_SF 2
+#endif
 
 #if LV_VG_LITE_FLUSH_MAX_COUNT > 0
     #define PATH_FLUSH_COUNT_MAX 0
@@ -135,6 +139,598 @@ void lv_draw_vg_lite_label(lv_draw_task_t * t, const lv_draw_label_dsc_t * dsc,
     LV_PROFILER_DRAW_END;
 }
 
+void lv_vg_lite_log_path(uint8_t* path, uint32_t path_size, vg_lite_format_t PathFormat)
+{
+    uint8_t *pathOpcode = (uint8_t *)path;
+    float *pathData_f = (float *)path;
+    int32_t *pathData_s32 = (int32_t *)path;
+    int16_t *pathData_s16 = (int16_t *)path;
+    int8_t *pathData_s8 = (int8_t *)path;
+    uint8_t *pathLast = (uint8_t *)(path + path_size);
+    uint8_t opcode;
+    int32_t v1,v2,v3,v4,v5,v6;
+    float vf1,vf2,vf3,vf4,vf5,vf6;
+    char *opcodename;
+
+    LV_LOG_WARN("path size: %lu",path_size);
+    while (pathOpcode < pathLast) {
+        opcode = *pathOpcode;
+        if(VG_LITE_S8 == PathFormat) {
+            pathData_s8++;
+        } else if(VG_LITE_S16 == PathFormat) {
+            pathData_s16++;
+        } else if(VG_LITE_S32 == PathFormat) {
+            pathData_s32++;
+        } else if(VG_LITE_FP32 == PathFormat) {
+            pathData_f++;
+        } else {
+            LV_LOG_ERROR("unknown pathformat\r\n");
+            return;
+        }
+        switch(opcode)
+        {
+            case 0:
+                LV_LOG_WARN("e");
+                break;
+            case 1:
+                LV_LOG_WARN("cl");
+                break;
+            case 2:  // M
+            case 4:  // L
+                if (2 == opcode) {
+                    opcodename = "m";
+                } else {
+                    opcodename = "l";
+                }
+                if(VG_LITE_S8 == PathFormat) {
+                    v1 = *pathData_s8++;
+                    v2 = *pathData_s8++;
+                    LV_LOG_WARN("%s %ld %ld ", opcodename, v1, v2);
+                } else if(VG_LITE_S16 == PathFormat) {
+                    v1 = *pathData_s16++;
+                    v2 = *pathData_s16++;
+                    LV_LOG_WARN("%s %ld %ld ", opcodename, v1, v2);
+                } else if(VG_LITE_S32 == PathFormat) {
+                    v1 = *pathData_s32++;
+                    v2 = *pathData_s32++;
+                    LV_LOG_WARN("%s %ld %ld ", opcodename, v1, v2);
+                } else if(VG_LITE_FP32 == PathFormat) {
+                    vf1 = *pathData_f++;
+                    vf2 = *pathData_f++;
+                    LV_LOG_WARN("%s %f %f ", opcodename, vf1, vf2);
+                }
+                break;
+            case 6:  // conic
+                opcodename = "q";
+                if(VG_LITE_S8 == PathFormat) {
+                    v1 = *pathData_s8++;
+                    v2 = *pathData_s8++;
+                    v3 = *pathData_s8++;
+                    v4 = *pathData_s8++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4);
+                } else if(VG_LITE_S16 == PathFormat) {
+                    v1 = *pathData_s16++;
+                    v2 = *pathData_s16++;
+                    v3 = *pathData_s16++;
+                    v4 = *pathData_s16++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4);
+                } else if(VG_LITE_S32 == PathFormat) {
+                    v1 = *pathData_s32++;
+                    v2 = *pathData_s32++;
+                    v3 = *pathData_s32++;
+                    v4 = *pathData_s32++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4);
+                } else if(VG_LITE_FP32 == PathFormat) {
+                    vf1 = *pathData_f++;
+                    vf2 = *pathData_f++;
+                    vf3 = *pathData_f++;
+                    vf4 = *pathData_f++;
+                    LV_LOG_WARN("%s %f %f %f %f ", opcodename, vf1, vf2, vf3, vf4);
+                }
+                break;
+            case 8:  // cubic
+                opcodename = "c";
+                if(VG_LITE_S8 == PathFormat) {
+                    v1 = *pathData_s8++;
+                    v2 = *pathData_s8++;
+                    v3 = *pathData_s8++;
+                    v4 = *pathData_s8++;
+                    v5 = *pathData_s8++;
+                    v6 = *pathData_s8++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4, v5, v6);
+                } else if(VG_LITE_S16 == PathFormat) {
+                    v1 = *pathData_s16++;
+                    v2 = *pathData_s16++;
+                    v3 = *pathData_s16++;
+                    v4 = *pathData_s16++;
+                    v5 = *pathData_s16++;
+                    v6 = *pathData_s16++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4, v5, v6);
+                } else if(VG_LITE_S32 == PathFormat) {
+                    v1 = *pathData_s32++;
+                    v2 = *pathData_s32++;
+                    v3 = *pathData_s32++;
+                    v4 = *pathData_s32++;
+                    v5 = *pathData_s32++;
+                    v6 = *pathData_s32++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4, v5, v6);
+                } else if(VG_LITE_FP32 == PathFormat) {
+                    vf1 = *pathData_f++;
+                    vf2 = *pathData_f++;
+                    vf3 = *pathData_f++;
+                    vf4 = *pathData_f++;
+                    vf5 = *pathData_f++;
+                    vf6 = *pathData_f++;
+                    LV_LOG_WARN("%s %f %f %f %f %f %f", opcodename, vf1, vf2, vf3, vf4, vf5, vf6);
+                }
+                break;
+            case 0x13:  // SCCWARC
+            case 0x15:  // SCWARC
+            case 0x17:  // LCCWARC
+            case 0x19:  // LCWARC
+                if (0x13 == opcode) {
+                    opcodename = "sccw";
+                } else if (0x15 == opcode) {
+                    opcodename = "scw";
+                } else if (0x17 == opcode) {
+                    opcodename = "lccw";
+                } else {
+                    opcodename = "lcw";
+                }
+                if(VG_LITE_S8 == PathFormat) {
+                    v1 = *pathData_s8++;
+                    v2 = *pathData_s8++;
+                    v3 = *pathData_s8++;
+                    v4 = *pathData_s8++;
+                    v5 = *pathData_s8++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4, v5);
+                } else if(VG_LITE_S16 == PathFormat) {
+                    v1 = *pathData_s16++;
+                    v2 = *pathData_s16++;
+                    v3 = *pathData_s16++;
+                    v4 = *pathData_s16++;
+                    v5 = *pathData_s16++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4, v5);
+                } else if(VG_LITE_S32 == PathFormat) {
+                    v1 = *pathData_s32++;
+                    v2 = *pathData_s32++;
+                    v3 = *pathData_s32++;
+                    v4 = *pathData_s32++;
+                    v5 = *pathData_s32++;
+                    LV_LOG_WARN("%s %ld %ld %ld %ld %ld ", opcodename, v1, v2, v3, v4, v5);
+                } else if(VG_LITE_FP32 == PathFormat) {
+                    vf1 = *pathData_f++;
+                    vf2 = *pathData_f++;
+                    vf3 = *pathData_f++;
+                    vf4 = *pathData_f++;
+                    vf5 = *pathData_f++;
+                    LV_LOG_WARN("%s %f %f %f %f %f", opcodename, vf1, vf2, vf3, vf4, vf5);
+                }
+                break;
+            default:
+                LV_LOG_ERROR("unknown opcode");
+                return;
+                break;
+        }
+        if(VG_LITE_S8 == PathFormat) {
+            pathOpcode = (uint8_t *)pathData_s8;
+        } else if(VG_LITE_S16 == PathFormat) {
+            pathOpcode = (uint8_t *)pathData_s16;
+        } else if(VG_LITE_S32 == PathFormat) {
+            pathOpcode = (uint8_t *)pathData_s32;
+        } else if(VG_LITE_FP32 == PathFormat) {
+            pathOpcode = (uint8_t *)pathData_f;
+        }
+    }
+}
+
+#if LV_USE_TXT_BATCH_RENDER
+#define PATH_MAX_SIZE   (32 *1024)
+
+void lv_vg_lite_check_path_capa(void *in)
+{
+    lv_event_param_check_path_capa *param = (lv_event_param_check_path_capa *)in;
+    if (param->path_h > param->display_h) {
+        param->ret = false;
+        return;
+    }
+    uint32_t path_size = param->path_mng->total_size;
+    if (path_size > PATH_MAX_SIZE) {
+        param->ret = false;
+    } else {
+        param->ret = true;
+    }
+}
+
+void lv_vg_lite_add_char_path(void *in)
+{
+    lv_event_param_add_char *param = (lv_event_param_add_char *)in;
+    lv_font_glyph_dsc_t * glyph_dsc = param->glyph_dsc;
+    lv_point_t* pos = &(param->pos);
+    lv_draw_unit_path_manage* path_mng = param->path_mng;
+    lv_char_path_node *d;
+    vg_lite_path_t * path;
+    uint8_t *p_u8, *cur, *end;
+    float *pf;
+    lv_vg_lite_path_t * outline = (lv_vg_lite_path_t *) lv_font_get_glyph_bitmap(glyph_dsc, NULL);
+    if (!outline) {
+        param->ret = LV_EVENT_ADD_CHAR_OUTLINE_NULL;
+        return;
+    }
+
+    path = lv_vg_lite_path_get_path(outline);
+    /* outline is PATH_DATA_COORD_FORMAT(S16) type */
+    uint8_t outline_format_len = lv_vg_lite_path_get_path_format_len(outline);
+    uint32_t param_size = path->path_length * UNIT_PATH_MEM_SIZE_SF;
+    uint32_t real_param_size = param_size - sizeof(float);
+    if (real_param_size > 0) {
+        d = lv_malloc(sizeof(lv_char_path_node) + param_size);
+        if (d) {
+            float scale = FT_F26DOT6_TO_PATH_SCALE(lv_freetype_outline_get_scale(glyph_dsc->resolved_font));
+            d->param = (d + 1);
+            d->param_size = real_param_size;          /* ignore opcode end */
+            d->next = NULL;
+
+            p_u8 = (uint8_t *)d->param;
+            cur = path->path;
+            end = cur + path->path_length;
+            int16_t *p_src;
+            while(cur < end) {
+                pf = (((float*)p_u8) + 1);
+                p_src = (int16_t *)(cur + outline_format_len);
+                *p_u8 = *cur;
+                switch(*p_u8){
+                    case VLC_OP_MOVE:
+                        *pf++ = (((float)(*p_src)) * scale) + pos->x; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->y; p_src++;
+                        break;
+                    case VLC_OP_LINE:
+                        *pf++ = (((float)(*p_src)) * scale) + pos->x; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->y; p_src++;
+                        break;
+                    case VLC_OP_QUAD:
+                        *pf++ = (((float)(*p_src)) * scale) + pos->x; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->y; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->x; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->y; p_src++;
+                        break;
+                    case VLC_OP_CUBIC:
+                        *pf++ = (((float)(*p_src)) * scale) + pos->x; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->y; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->x; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->y; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->x; p_src++;
+                        *pf++ = (((float)(*p_src)) * scale) + pos->y; p_src++;
+                    case VLC_OP_END:
+                        break;
+                    default:
+                        LV_ASSERT_FORMAT_MSG(false, "unknown op_code: %d", *p_u8);
+                        param->ret = LV_EVENT_ADD_CHAR_FAIL;
+                        return;
+                }
+                cur = (uint8_t *)p_src;
+                p_u8 = (uint8_t *)pf;
+            }
+            if(path_mng->head) {
+                path_mng->tail->next = d;
+            } else {
+                path_mng->head = d;
+            }
+            path_mng->tail = d;
+            path_mng->total_size += d->param_size;
+            param->ret = LV_EVENT_ADD_CHAR_SUCCESS;
+        } else {
+            param->ret = LV_EVENT_ADD_CHAR_FAIL;
+        }
+    } else {
+        param->ret = LV_EVENT_ADD_CHAR_SUCCESS;
+    }
+    lv_font_glyph_release_draw_data(glyph_dsc);
+}
+
+#define VG_LITE_DATA(count)         (0x40000000 | count)
+#define VG_LITE_RETURN()            (0x70000000)
+
+void lv_vg_lite_build_draw_unit_path(void * in)
+{
+    lv_event_param_build_path *param = (lv_event_param_build_path *)in;
+    uint32_t element_size = sizeof(float);
+    lv_draw_unit_path_manage* path_mng = param->path_mng;
+    uint32_t path_size = path_mng->total_size;
+
+    /* add end opcode */
+    path_size += element_size;
+
+    if (path_size > PATH_MAX_SIZE) {
+        param->ret = NULL;
+        return;
+    }
+    uint8_t *PathBuf = NULL, *buf;
+    uint32_t real_bytes;
+    uint32_t* p32;
+    lv_char_path_node *pNode;
+    lv_vg_lite_path_build *createdPath = NULL;
+    lv_mem_ops_t *mem_op = &(LV_GLOBAL_DEFAULT()->mem_hw_ops_cb);
+
+    real_bytes = (8 + path_size + 7 + 8) & ~7;
+    PathBuf = mem_op->malloc_align_cb(64,real_bytes);
+    if( NULL == PathBuf) {
+        goto ErrorHandler;
+    }
+    p32 = (uint32_t*)PathBuf;
+    /* Initialize command buffer prefix. */
+    *p32++ = VG_LITE_DATA((path_size + 7) / 8);
+    *p32++ = 0;
+
+    pNode = path_mng->head;
+    buf = (uint8_t *)p32;
+    while(pNode) {
+        lv_memcpy(buf, pNode->param, pNode->param_size);
+        buf += pNode->param_size;
+        pNode = pNode->next;
+    }
+
+    /* add end opcode */
+    *buf = VLC_OP_END;
+
+    p32 = (uint32_t*)(PathBuf + real_bytes);
+    p32 -= 2;
+    /* Initialize command buffer postfix. */
+    *p32++ = VG_LITE_RETURN();
+    *p32 = 0;
+
+    createdPath = lv_malloc(sizeof(lv_vg_lite_path_build));
+    createdPath->path = PathBuf;
+    createdPath->path_size = path_size;
+    createdPath->upload_size = real_bytes;
+
+    /* GpuMemalign是cachable的区域，需要刷cache，clean path cache for clean cache only one time */
+    if (mem_op->clean_cache_cb) mem_op->clean_cache_cb((void *)PathBuf, real_bytes);
+
+    createdPath->stroke_path = NULL;
+    createdPath->stroke_path_size = 0;
+    createdPath->stroke_upload_size = 0;
+    param->ret = createdPath;
+    return;
+ErrorHandler:
+    LV_LOG_WARN("%s error",__func__);
+    if(PathBuf) {
+        lv_free(PathBuf);
+    }
+    if(createdPath) {
+        lv_free(createdPath);
+    }
+    param->ret = NULL;
+    return;
+}
+
+void lv_vg_lite_delete_path_mng(void *in)
+{
+    lv_draw_unit_path_manage* path_mng = (lv_draw_unit_path_manage*)in;
+    lv_char_path_node *head = path_mng->head;
+    lv_char_path_node *next;
+    while (head) {
+        next = head->next;
+        lv_free(head);            // Path_List_Node and pcmd and pCmdParam is in the same memory
+        head = next;
+    }
+    lv_memset(path_mng, 0, sizeof(lv_draw_unit_path_manage));
+}
+
+void lv_vg_lite_delete_draw_unit_path(void *in)
+{
+    lv_mem_ops_t *mem_op = &(LV_GLOBAL_DEFAULT()->mem_hw_ops_cb);
+    lv_vg_lite_path_build *draw_unit_path = (lv_vg_lite_path_build *)in;
+    if (draw_unit_path->path) {
+        mem_op->free_align_cb(draw_unit_path->path);
+    }
+    if (draw_unit_path->stroke_path) {
+        mem_op->free_align_cb(draw_unit_path->stroke_path);
+    }
+    lv_free(draw_unit_path);
+}
+
+void lv_vg_lite_add_end_cmd(void *param)
+{
+    lv_event_param_path *para = (lv_event_param_path *)param;
+    lv_char_path_node *node = (lv_char_path_node *)(para->param);
+    uint8_t *p = (uint8_t *)node->param;
+    p += node->param_size;
+    *p = VLC_OP_END;
+    node->param_size += sizeof(float);
+}
+
+void lv_vg_lite_build_rect_border(void *param)
+{
+    lv_event_param_path *para_in = (lv_event_param_path *)param;
+    lv_event_param_path_rect *para = (lv_event_param_path_rect *)(para_in->param);
+    lv_draw_unit_path_manage* path_mng = para->path_mng;
+    lv_char_path_node *d;
+    uint8_t *data;
+    float *fp_data;
+    uint32_t param_size = 104;
+
+    d = lv_malloc(sizeof(lv_char_path_node) + param_size);
+    if (d) {
+        d->param = (uint8_t *)(d + 1);
+        d->param_size = param_size;
+        d->next = NULL;
+
+        data = (uint8_t *)(d->param);
+        fp_data = (float*)data;
+        *data = VLC_OP_MOVE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x1); *fp_data ++ = (float)(para->area->y1);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x2); *fp_data ++ = (float)(para->area->y1);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x2); *fp_data ++ = (float)(para->area->y2);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x1); *fp_data ++ = (float)(para->area->y2);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_CLOSE; fp_data ++;
+
+        /* inner rect */
+        int32_t border_w = 1;
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_MOVE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x1 + border_w); *fp_data ++ = (float)(para->area->y1 + border_w);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x1 + border_w); *fp_data ++ = (float)(para->area->y2 - border_w);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x2 - border_w); *fp_data ++ = (float)(para->area->y2 - border_w);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x2 - border_w); *fp_data ++ = (float)(para->area->y1 + border_w);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_CLOSE; fp_data ++;
+
+        if(path_mng->head) {
+            path_mng->tail->next = d;
+        } else {
+            path_mng->head = d;
+        }
+        path_mng->tail = d;
+        path_mng->total_size += d->param_size;
+        para_in->ret = true;
+    } else {
+        para_in->ret = false;
+    }
+}
+
+void lv_vg_lite_build_rect(void *param)
+{
+    lv_event_param_path *para_in = (lv_event_param_path *)param;
+    lv_event_param_path_rect *para = (lv_event_param_path_rect *)(para_in->param);
+    lv_draw_unit_path_manage* path_mng = para->path_mng;
+    lv_char_path_node *d;
+    uint8_t *data;
+    float *fp_data;
+    uint32_t param_size = 52;
+
+    d = lv_malloc(sizeof(lv_char_path_node) + param_size);
+    if (d) {
+        d->param = (uint8_t *)(d + 1);
+        d->param_size = param_size;
+        d->next = NULL;
+
+        data = (uint8_t *)(d->param);
+        fp_data = (float*)data;
+        *data = VLC_OP_MOVE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x1); *fp_data ++ = (float)(para->area->y1);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x2 + 1); *fp_data ++ = (float)(para->area->y1);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x2 + 1); *fp_data ++ = (float)(para->area->y2 + 1);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_LINE; fp_data ++;
+        *fp_data ++ = (float)(para->area->x1); *fp_data ++ = (float)(para->area->y2 + 1);
+
+        data = (uint8_t *)fp_data;
+        *data = VLC_OP_CLOSE; fp_data ++;
+
+        if(path_mng->head) {
+            path_mng->tail->next = d;
+        } else {
+            path_mng->head = d;
+        }
+        path_mng->tail = d;
+        path_mng->total_size += d->param_size;
+        para_in->ret = true;
+    } else {
+        para_in->ret = false;
+    }
+}
+
+void lv_vg_lite_path_cmd_handle(void *param)
+{
+    lv_event_param_path *path_param = (lv_event_param_path *)param;
+    switch(path_param->cmd) {
+        case LV_PATH_ADD_END:
+            lv_vg_lite_add_end_cmd(path_param);
+            break;
+        case LV_PATH_RECT_BORDER:
+            lv_vg_lite_build_rect_border(path_param);
+            break;
+        case LV_PATH_RECT:
+            lv_vg_lite_build_rect(path_param);
+            break;
+        default:
+            LV_LOG_ERROR("unknown vg_lite path cmd");
+            break;
+    }
+}
+
+void lv_vg_lite_draw_unit_path(void * in)
+{
+    LV_PROFILER_DRAW_BEGIN;
+
+    vg_lite_path_t path;
+    lv_event_param_draw_path *param = (lv_event_param_draw_path *)in;
+    lv_draw_unit_path_node *d = param->path_node;
+    lv_vg_lite_path_build *createPath = d->unit_path;
+
+    lv_draw_vg_lite_unit_t * u = (lv_draw_vg_lite_unit_t *)(param->t->draw_unit);
+
+    /* calc convert matrix */
+    vg_lite_matrix_t matrix;
+    vg_lite_identity(&matrix);
+
+    vg_lite_translate(param->trans.x, param->trans.y, &matrix);
+
+    /* matrix for drawing, different from matrix for calculating the bounding box */
+    vg_lite_matrix_t draw_matrix = u->global_matrix;
+    lv_vg_lite_matrix_multiply(&draw_matrix, &matrix);
+
+    if (param->uploaded_path) {
+        vg_lite_init_path(&path, VG_LITE_FP32, VG_LITE_HIGH, createPath->path_size, (void *)(createPath->path + 2 * sizeof(uint32_t)), d->area.x1, d->area.y1, d->area.x2,d->area.y2);
+
+        path.uploaded.address = (uint32_t)createPath->path;
+        path.uploaded.bytes = createPath->upload_size;
+        path.path_changed = 0;
+        VLM_PATH_ENABLE_UPLOAD(path);      /* Implicitly enable path uploading. */
+    } else {
+        LV_ASSERT(vg_lite_init_path(&path, VG_LITE_FP32, VG_LITE_HIGH, param->no_uploaded_path_len, (void *)d->unit_path, d->area.x1, d->area.y1, d->area.x2,d->area.y2) == VG_LITE_SUCCESS);
+    }
+
+    lv_vg_lite_draw(
+        &u->target_buffer,
+        &path,
+        VG_LITE_FILL_NON_ZERO,
+        &draw_matrix,
+        VG_LITE_BLEND_SRC_OVER,
+        lv_vg_lite_color(param->draw_letter_dsc->color, param->draw_letter_dsc->opa, true));
+
+    lv_vg_lite_force_flush(u);
+
+    LV_PROFILER_DRAW_END;
+}
+
+void lv_vg_lite_event_set_scissor_area(void * in)
+{
+    lv_event_param_set_scissor_area *param = (lv_event_param_set_scissor_area *)in;
+    lv_draw_vg_lite_unit_t * u = (lv_draw_vg_lite_unit_t *)(param->t->draw_unit);
+    lv_vg_lite_set_scissor_area(u, param->scissor_area);
+}
+#endif
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
@@ -152,7 +748,7 @@ static inline bool init_buffer_from_glyph_dsc(vg_lite_buffer_t * buffer, lv_font
     }
 
     if(!LV_VG_LITE_IS_ALIGNED(g_dsc->stride, 16)) {
-        LV_LOG_WARN("Glyph stride %" LV_PRIu32 " is not aligned to 16 bytes", g_dsc->stride);
+        LV_LOG_WARN("Glyph stride %" LV_PRIu32 " is not aligned to 16 bytes", (uint32_t)g_dsc->stride);
         return false;
     }
 

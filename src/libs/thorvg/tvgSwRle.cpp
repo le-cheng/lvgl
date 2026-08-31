@@ -190,7 +190,7 @@
 
 *    http://www.freetype.org
 */
-
+#include <cstddef>
 #include <setjmp.h>
 #include <limits.h>
 #include <memory.h>

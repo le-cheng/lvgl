@@ -139,6 +139,39 @@ static void rounder_cb(lv_event_t * e)
     area->y2 = area->y1 + h - 1;
 }
 
+static void wait_cb(lv_display_t *disp)
+{
+    lv_nuttx_lcd_t *lcd = disp->driver_data;
+    lv_draw_buf_t *last_flush_buf;
+    struct lcddev_run_s lcd_run;
+
+    /* If there are 2 buffers swap them. With direct mode swap only on the last area */
+
+    if (lv_display_is_double_buffered(disp) &&
+        (disp->render_mode != LV_DISPLAY_RENDER_MODE_DIRECT ||
+         disp->flushing_last))
+      {
+        if (disp->buf_act == disp->buf_1)
+          {
+            last_flush_buf = disp->buf_2;
+          }
+        else if (disp->buf_act == disp->buf_2)
+          {
+            last_flush_buf = disp->buf_3 ? disp->buf_3 : disp->buf_1;
+          }
+        else
+          {
+            last_flush_buf = disp->buf_1;
+          }
+      }
+
+    LV_LOG_INFO("wait_cb last flush buf:0x%p+++++", last_flush_buf->data);
+
+    lcd_run.data = last_flush_buf->data;
+    ioctl(lcd->fd, LCDDEVIO_GETRUN, (unsigned long)&lcd_run);
+    lv_display_flush_ready(disp);
+}
+
 static void flush_cb(lv_display_t * disp, const lv_area_t * area_p,
                      uint8_t * color_p)
 {
@@ -153,7 +186,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area_p,
     lcd->area.data = (uint8_t *)color_p + (LV_COLOR_FORMAT_IS_INDEXED(cf) ?
                                            LV_COLOR_INDEXED_PALETTE_SIZE(cf) * 4 : 0);
     ioctl(lcd->fd, LCDDEVIO_PUTAREA, (unsigned long) & (lcd->area));
-    lv_display_flush_ready(disp);
+    //lv_display_flush_ready(disp);
 }
 
 static lv_display_t * lcd_init(int fd, int hor_res, int ver_res)
@@ -206,6 +239,7 @@ static lv_display_t * lcd_init(int fd, int hor_res, int ver_res)
     lv_display_set_draw_buffers(lcd->disp, draw_buf, draw_buf_2);
     lv_display_set_render_mode(lcd->disp, render_mode);
     lv_display_set_flush_cb(lcd->disp, flush_cb);
+    lv_display_set_flush_wait_cb(lcd->disp, wait_cb);
     lv_display_add_event_cb(lcd->disp, rounder_cb, LV_EVENT_INVALIDATE_AREA, lcd);
     lv_display_add_event_cb(lcd->disp, display_release_cb, LV_EVENT_DELETE, lcd->disp);
     lv_display_set_driver_data(lcd->disp, lcd);

@@ -28,6 +28,31 @@ extern "C" {
  *      TYPEDEFS
  **********************/
 
+#if LV_USE_TXT_BATCH_RENDER
+typedef struct _lv_label_line_t {
+    uint32_t char_cnt;              /**< character count in this line */
+    uint32_t byte_cnt;              /**< byte count in this line, include marker */
+    uint32_t pixel_w;               /**< pixel width in this line */
+} lv_label_line_t;
+
+ typedef struct _lv_label_line_info_t {
+    uint32_t total_char_cnt;        /**< total character count in this label */
+    uint32_t line_cnt;              /**< line count in this label */
+    uint32_t line_cap;              /**< how much line info in the following *line */
+    lv_label_line_t *line;         /**< evety line info in this label */
+} lv_label_line_info_t;
+
+typedef struct _lv_label_txt_layout_info_t {
+    void *font;
+    int32_t letter_space;
+    int32_t line_space;
+    lv_text_decor_t decor;
+    lv_text_align_t align;
+    int32_t width;
+    /* text_flags: lv_label_mark_need_refr_text has been done if expand and recolor changed */
+}lv_label_txt_layout_info_t;
+#endif
+
 struct _lv_label_t {
     lv_obj_t obj;
     char * text;
@@ -56,6 +81,18 @@ struct _lv_label_t {
     uint8_t need_refr_text : 1;         /**< 1: Refresh text after layout update completion */
 
     lv_point_t text_size;
+#if LV_USE_TXT_BATCH_RENDER
+    uint8_t enable_batch_render : 1;
+    uint8_t first_draw : 1;
+    uint8_t is_outline_font : 1;
+    uint8_t is_layout_dots : 1;
+    lv_label_line_info_t line_info;
+    lv_draw_unit_path_manage path_mng;
+    lv_area_t path_mng_area;
+    lv_ll_t draw_unit_path;
+    lv_draw_unit_t* draw_unit;
+    lv_label_txt_layout_info_t  txt_layout_info;
+#endif
 };
 
 

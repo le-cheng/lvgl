@@ -21,6 +21,9 @@
 #include "../misc/lv_profiler.h"
 #include "../misc/lv_types.h"
 #include "../draw/lv_draw_private.h"
+#if LV_USE_DRAW_VG_LITE
+    #include "../draw/vg_lite/lv_draw_vg_lite.h"
+#endif
 #include "../stdlib/lv_string.h"
 #include "lv_global.h"
 
@@ -1034,7 +1037,12 @@ static void refr_configured_layer(lv_layer_t * layer)
     if(lv_color_format_has_alpha(disp_refr->color_format)) {
         lv_area_t clear_area = layer->_clip_area;
         lv_area_move(&clear_area, -layer->buf_area.x1, -layer->buf_area.y1);
-        lv_draw_buf_clear(layer->draw_buf, &clear_area);
+#if LV_USE_DRAW_VG_LITE
+        if(!lv_draw_buf_clear_vg_lite(layer->draw_buf, &clear_area))
+#endif
+        {
+            lv_draw_buf_clear(layer->draw_buf, &clear_area);
+        }
     }
 
     lv_obj_t * top_act_scr = NULL;

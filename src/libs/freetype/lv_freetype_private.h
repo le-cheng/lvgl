@@ -109,6 +109,9 @@ typedef struct _lv_freetype_context_t {
     uint32_t max_glyph_cnt;
 
     lv_cache_t * cache_node_cache;
+#if LV_USE_FREETYPE_MEM_FACE
+    void * working_face_node;
+#endif
 } lv_freetype_context_t;
 
 typedef struct _lv_freetype_font_dsc_t {

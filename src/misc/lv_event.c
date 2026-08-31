@@ -418,6 +418,16 @@ const char * lv_event_code_get_name(lv_event_code_t code)
             ENUM_CASE(EVENT_TRANSLATION_LANGUAGE_CHANGED);
 #endif /*LV_USE_TRANSLATION*/
 
+#if LV_USE_TXT_BATCH_RENDER
+            ENUM_CASE(EVENT_ADD_CHAR_PATH);
+            ENUM_CASE(EVENT_CHECK_PATH_CAPA);
+            ENUM_CASE(EVENT_BUILD_PATH);
+            ENUM_CASE(EVENT_DELETE_PATH_MNG);
+            ENUM_CASE(EVENT_DELETE_UNIT_PATH);
+            ENUM_CASE(EVENT_DRAW_BUILD_PATH);
+            ENUM_CASE(EVENT_PATH_CMD);
+            ENUM_CASE(EVENT_SET_SCISSOR_AREA);
+#endif
         /* Special event flags */
         case LV_EVENT_LAST:
         case LV_EVENT_PREPROCESS:

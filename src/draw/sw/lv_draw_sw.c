@@ -298,6 +298,9 @@ static int32_t dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
         t->state = LV_DRAW_TASK_STATE_IN_PROGRESS;
         thread_dsc->task_act = t;
 
+#if LV_USE_TXT_BATCH_RENDER
+        t->draw_unit = draw_unit;
+#endif
         /*Let the render thread work*/
         if(thread_dsc->inited) lv_thread_sync_signal(&thread_dsc->sync);
     }
@@ -329,6 +332,9 @@ static int32_t dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
     t->state = LV_DRAW_TASK_STATE_IN_PROGRESS;
     draw_sw_unit->task_act = t;
 
+#if LV_USE_TXT_BATCH_RENDER
+    t->draw_unit = draw_unit;
+#endif
     execute_drawing(t);
     draw_sw_unit->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
     draw_sw_unit->task_act = NULL;

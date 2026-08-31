@@ -67,6 +67,79 @@ typedef enum {
 #endif
 } lv_draw_task_type_t;
 
+#if LV_USE_TXT_BATCH_RENDER
+typedef struct _lv_char_path_node {
+    void *param;                    // head pointer pathparam struct
+    uint32_t param_size;             // pCmdParam bytes size
+    struct _lv_char_path_node  *next;
+} lv_char_path_node;
+
+typedef struct {
+    uint32_t total_size;
+    lv_char_path_node *head;
+    lv_char_path_node *tail;
+} lv_draw_unit_path_manage;
+
+typedef struct  _lv_draw_unit_path_node {
+    void *unit_path;
+    lv_area_t area;
+}lv_draw_unit_path_node;
+
+typedef struct _lv_event_param_add_char {
+    lv_font_glyph_dsc_t * glyph_dsc;
+    lv_point_t pos;
+    lv_draw_unit_path_manage *path_mng;
+#define LV_EVENT_ADD_CHAR_SUCCESS           1
+#define LV_EVENT_ADD_CHAR_FAIL              0
+#define LV_EVENT_ADD_CHAR_OUTLINE_NULL      (-1)
+    int8_t ret;                            /* 1: success -1:outline is null 0:other fail */
+} lv_event_param_add_char;
+
+typedef struct _lv_event_param_check_path_capa {
+    lv_draw_unit_path_manage *path_mng;
+    uint32_t path_w;
+    uint32_t path_h;
+    uint32_t display_h;
+    bool ret;
+} lv_event_param_check_path_capa;
+
+typedef struct _lv_event_param_build_path {
+    lv_draw_unit_path_manage *path_mng;
+    void *ret;
+} lv_event_param_build_path;
+
+typedef struct _lv_event_param_draw_path {
+    lv_draw_task_t *t;
+    lv_draw_glyph_dsc_t *draw_letter_dsc;
+    void *path_node;
+    lv_point_t  trans;
+    uint32_t no_uploaded_path_len;
+    bool uploaded_path;
+} lv_event_param_draw_path;
+
+typedef enum {
+    LV_PATH_ADD_END,
+    LV_PATH_RECT_BORDER,
+    LV_PATH_RECT,
+} lv_event_path_cmd_t;
+
+typedef struct _lv_event_param_path {
+    lv_event_path_cmd_t cmd;
+    void *param;
+    bool ret;
+} lv_event_param_path;
+
+typedef struct _lv_event_param_path_rect {
+    lv_area_t *area;
+    lv_draw_unit_path_manage *path_mng;
+}lv_event_param_path_rect;
+
+typedef struct _lv_event_param_set_scissor_area {
+    lv_draw_task_t * t;
+    lv_area_t * scissor_area;
+}lv_event_param_set_scissor_area;
+#endif
+
 typedef enum {
     /** Waiting for an other task to be finished.
      * For example in case of `LV_DRAW_TASK_TYPE_LAYER` (used to blend a layer)
@@ -301,6 +374,14 @@ uint32_t lv_draw_get_dependent_count(lv_draw_task_t * t_check);
  * @param param             the event parameter
  */
 void lv_draw_unit_send_event(const char * name, lv_event_code_t code, void * param);
+
+/**
+ * Send an event to the draw units
+ * @param name              the draw unit to send the event to
+ * @param code              the event code
+ * @param param             the event parameter
+ */
+void lv_draw_unit_send_event_to_unit(lv_draw_unit_t* u, lv_event_code_t code, void * param);
 
 /**
  * Initialize a layer

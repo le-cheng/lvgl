@@ -277,6 +277,8 @@ typedef struct _lv_global_t {
 #if LV_USE_DRAW_EVE
     lv_draw_eve_unit_t * draw_eve_unit;
 #endif
+
+    lv_mem_ops_t    mem_hw_ops_cb;
 } lv_global_t;
 
 /**********************

@@ -40,11 +40,20 @@ typedef enum {
     LV_TEXT_CMD_STATE_IN,   /**< Processing the command*/
 } lv_text_cmd_state_t;
 
+#if LV_USE_TXT_BATCH_RENDER
+typedef bool (*lv_text_attr_cb_t)(uint32_t char_cnt, uint32_t byte_cnt, uint32_t pixel_w, void * user_data);
+#endif
+
 typedef struct {
     int32_t letter_space;   /**< Letter space between letters*/
     int32_t line_space;     /**< Space between lines of text*/
     int32_t max_width;      /**< Max width of the text (break the lines to fit this size). Set COORD_MAX to avoid*/
     lv_text_flag_t text_flags;
+#if LV_USE_TXT_BATCH_RENDER
+    uint32_t line_char_cnt;     /* temporary use */
+    lv_text_attr_cb_t cb;
+    void *user_data;
+#endif
 } lv_text_attributes_t;
 
 

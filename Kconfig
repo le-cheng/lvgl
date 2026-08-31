@@ -2120,6 +2120,12 @@ menu "LVGL configuration"
 			help
 				Set the step size of the mouse movement in pixels.
 
+		config LV_USE_NUTTX_BUTTONS
+			bool "Use NuttX buttons driver"
+			depends on LV_USE_NUTTX
+			depends on INPUT_BUTTONS
+			default n
+
 		config LV_USE_NUTTX_TRACE_FILE
 			bool "Use NuttX trace file"
 			depends on LV_USE_NUTTX

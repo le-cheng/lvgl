@@ -79,6 +79,7 @@ static lv_cache_compare_res_t grad_compare_cb(const grad_item_ref_t * lhs_ref, c
 
 static grad_type_t lv_grad_style_to_type(lv_vector_gradient_style_t style);
 static void grad_point_to_matrix(vg_lite_matrix_t * grad_matrix, float x1, float y1, float x2, float y2);
+static void grad_transform_coords(float * x1, float * y1, float * x2, float * y2, const vg_lite_matrix_t * matrix);
 static vg_lite_gradient_spreadmode_t lv_spread_to_vg(lv_vector_gradient_spread_t spread);
 
 static void lv_vg_lite_linear_gradient_dump_info(const vg_lite_linear_gradient_t * grad);
@@ -196,7 +197,6 @@ bool lv_vg_lite_draw_grad(
                 vg_lite_matrix_t * grad_mat_p = vg_lite_get_grad_matrix(linear_grad);
                 LV_ASSERT_NULL(grad_mat_p);
                 *grad_mat_p = *grad_matrix;
-                grad_point_to_matrix(grad_mat_p, grad->x1, grad->y1, grad->x2, grad->y2);
 
                 LV_PROFILER_DRAW_BEGIN_TAG("vg_lite_draw_grad");
                 LV_VG_LITE_CHECK_ERROR(vg_lite_draw_grad(
@@ -332,6 +332,8 @@ bool lv_vg_lite_draw_grad_helper(
             grad.y1 = area->y1;
             grad.x2 = area->x1;
             grad.y2 = area->y2 + 1;
+
+            grad_transform_coords(&grad.x1, &grad.y1, &grad.x2, &grad.y2, matrix);
             break;
 
         case LV_GRAD_DIR_HOR:
@@ -339,6 +341,8 @@ bool lv_vg_lite_draw_grad_helper(
             grad.y1 = area->y1;
             grad.x2 = area->x2 + 1;
             grad.y2 = area->y1;
+
+            grad_transform_coords(&grad.x1, &grad.y1, &grad.x2, &grad.y2, matrix);
             break;
 
         case LV_GRAD_DIR_LINEAR: {
@@ -370,7 +374,24 @@ bool lv_vg_lite_draw_grad_helper(
             return false;
     }
 
-    return lv_vg_lite_draw_grad(ctx, buffer, path, &grad, matrix, matrix, fill, blend);
+    vg_lite_matrix_t grad_matrix;
+
+    if(grad_dsc->dir == LV_GRAD_DIR_VER || grad_dsc->dir == LV_GRAD_DIR_HOR) {
+        /* VER/HOR: coordinates already transformed to local space, start from identity */
+        vg_lite_identity(&grad_matrix);
+        grad_point_to_matrix(&grad_matrix, grad.x1, grad.y1, grad.x2, grad.y2);
+    }
+    else if(grad.style == LV_VECTOR_GRADIENT_STYLE_LINEAR) {
+        /* LINEAR: coordinates in global space, apply base matrix then gradient transform */
+        grad_matrix = *matrix;
+        grad_point_to_matrix(&grad_matrix, grad.x1, grad.y1, grad.x2, grad.y2);
+    }
+    else {
+        /* RADIAL: use base matrix directly */
+        grad_matrix = *matrix;
+    }
+
+    return lv_vg_lite_draw_grad(ctx, buffer, path, &grad, &grad_matrix, matrix, fill, blend);
 }
 
 /**********************
@@ -661,6 +682,21 @@ static vg_lite_gradient_spreadmode_t lv_spread_to_vg(lv_vector_gradient_spread_t
     }
 
     return VG_LITE_GRADIENT_SPREAD_FILL;
+}
+
+static void grad_transform_coords(float * x1, float * y1, float * x2, float * y2, const vg_lite_matrix_t * matrix)
+{
+    if(!matrix) return;
+
+    float x1_t = (*x1) * matrix->m[0][0] + (*y1) * matrix->m[0][1] + matrix->m[0][2];
+    float y1_t = (*x1) * matrix->m[1][0] + (*y1) * matrix->m[1][1] + matrix->m[1][2];
+    float x2_t = (*x2) * matrix->m[0][0] + (*y2) * matrix->m[0][1] + matrix->m[0][2];
+    float y2_t = (*x2) * matrix->m[1][0] + (*y2) * matrix->m[1][1] + matrix->m[1][2];
+
+    *x1 = x1_t;
+    *y1 = y1_t;
+    *x2 = x2_t;
+    *y2 = y2_t;
 }
 
 static bool grad_create_cb(grad_item_ref_t * item_ref, void * user_data)

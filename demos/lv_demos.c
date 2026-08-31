@@ -61,6 +61,14 @@ static const demo_entry_info_t demos_entry_info[] = {
     { "benchmark", .entry_cb = lv_demo_benchmark },
 #endif
 
+#if LV_USE_DEMO_SMARTWATCH
+    { "smartwatch", .entry_cb = lv_demo_smartwatch },
+#endif
+
+#if LV_USE_DEMO_LITEWATCH
+    { "litewatch", .entry_cb = lv_demo_litewatch },
+#endif
+
     { "", .entry_cb = NULL }
 };
 

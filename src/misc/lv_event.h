@@ -125,6 +125,16 @@ typedef enum {
     LV_EVENT_PREPROCESS = 0x8000,   /** This is a flag that can be set with an event so it's processed
                                       before the class default event processing */
     LV_EVENT_MARKED_DELETING = 0x10000,
+#if LV_USE_TXT_BATCH_RENDER
+    LV_EVENT_ADD_CHAR_PATH,
+    LV_EVENT_CHECK_PATH_CAPA,
+    LV_EVENT_BUILD_PATH,
+    LV_EVENT_DELETE_PATH_MNG,
+    LV_EVENT_DELETE_UNIT_PATH,
+    LV_EVENT_DRAW_BUILD_PATH,
+    LV_EVENT_PATH_CMD,
+    LV_EVENT_SET_SCISSOR_AREA,
+#endif
 } lv_event_code_t;
 
 typedef struct {
