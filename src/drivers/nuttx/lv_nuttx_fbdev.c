@@ -7,6 +7,7 @@
  *      INCLUDES
  *********************/
 #include "lv_nuttx_fbdev.h"
+#include "lv_nuttx_fbdev_configuration.h"
 #if LV_USE_NUTTX
 
 #include <stdlib.h>
@@ -39,6 +40,9 @@
 typedef struct {
     /* fd should be defined at the beginning */
     int fd;
+#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+    bool fb_enabled;
+#endif
     struct fb_videoinfo_s vinfo;
     struct fb_planeinfo_s pinfo;
 
@@ -105,7 +109,12 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
     LV_ASSERT(disp && file);
     lv_nuttx_fb_t * dsc = lv_display_get_driver_data(disp);
 
-    if(dsc->fd >= 0) close(dsc->fd);
+    if(dsc->fd >= 0) {
+#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+        lv_nuttx_fbdev_disable(dsc->fd, &dsc->fb_enabled);
+#endif
+        close(dsc->fd);
+    }
 
     /* Open the file for reading and writing*/
 
@@ -115,6 +124,12 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
         return -errno;
     }
     LV_LOG_USER("The framebuffer device was opened successfully");
+
+#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+    if((ret = lv_nuttx_fbdev_enable(dsc->fd, &dsc->fb_enabled)) < 0) {
+        goto errout;
+    }
+#endif
 
     if(ioctl(dsc->fd, FBIOGET_VIDEOINFO, (unsigned long)((uintptr_t)&dsc->vinfo)) < 0) {
         LV_LOG_ERROR("ioctl(FBIOGET_VIDEOINFO) failed: %d", errno);
@@ -199,6 +214,9 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
     return 0;
 
 errout:
+#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+    lv_nuttx_fbdev_disable(dsc->fd, &dsc->fb_enabled);
+#endif
     close(dsc->fd);
     dsc->fd = -1;
     return ret;
@@ -484,6 +502,9 @@ static void display_release_cb(lv_event_t * e)
         lv_display_set_flush_cb(disp, NULL);
 
         if(dsc->fd >= 0) {
+#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+            lv_nuttx_fbdev_disable(dsc->fd, &dsc->fb_enabled);
+#endif
             close(dsc->fd);
             dsc->fd = -1;
         }
