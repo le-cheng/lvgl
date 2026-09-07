@@ -152,6 +152,16 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
         goto errout;
     }
 
+#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+    /* The buffer slots can live in different PSRAM windows.  Use the
+     * addresses reported by the driver instead of mapping one region. */
+    if(dsc->pinfo.buffer[0] == NULL) {
+        LV_LOG_ERROR("Non-contiguous framebuffer did not provide buffer[0]");
+        ret = -ENODEV;
+        goto errout;
+    }
+    dsc->mem = dsc->pinfo.buffer[0];
+#else
     dsc->mem = mmap(NULL, dsc->pinfo.fblen, PROT_READ | PROT_WRITE,
                     MAP_SHARED | MAP_FILE, dsc->fd, 0);
     if(dsc->mem == MAP_FAILED) {
@@ -159,8 +169,14 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
         ret = -errno;
         goto errout;
     }
+#endif
 
+#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+    uint32_t w = dsc->pinfo.xres_virtual ? dsc->pinfo.xres_virtual :
+                 dsc->vinfo.xres;
+#else
     uint32_t w = dsc->vinfo.xres;
+#endif
     uint32_t h = dsc->vinfo.yres;
     uint32_t stride = dsc->pinfo.stride;
     uint32_t data_size = h * stride;
@@ -320,6 +336,30 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     /* double framebuffer */
 
     if(dsc->mem2 != NULL) {
+#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+        uint8_t buffer_index = 0;
+
+        if(disp->buf_act == disp->buf_1) {
+            buffer_index = 0;
+        }
+        else if(disp->buf_act == disp->buf_2) {
+            buffer_index = 1;
+        }
+        else if(disp->buf_act == disp->buf_3) {
+            buffer_index = 2;
+        }
+
+        if(dsc->pinfo.buffer[buffer_index] == NULL) {
+            LV_LOG_ERROR("Non-contiguous framebuffer buffer[%u] is missing",
+                         buffer_index);
+            lv_display_flush_ready(disp);
+            return;
+        }
+
+        dsc->pinfo.fbmem = dsc->pinfo.buffer[buffer_index];
+        dsc->pinfo.yoffset = 0;
+        dsc->pinfo.buffer_index = buffer_index;
+#else
         if(disp->buf_act == disp->buf_1) {
             dsc->pinfo.yoffset = 0;
         }
@@ -329,6 +369,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
         else if(disp->buf_act == disp->buf_3) {
             dsc->pinfo.yoffset = dsc->mem3_yoffset;
         }
+#endif
 
         if(ioctl(dsc->fd, FBIOPAN_DISPLAY, (unsigned long)((uintptr_t) & (dsc->pinfo))) < 0) {
             LV_LOG_ERROR("ioctl(FBIOPAN_DISPLAY) failed: %d", errno);
@@ -376,6 +417,18 @@ static int fbdev_get_pinfo(int fd, struct fb_planeinfo_s * pinfo)
 
 static int fbdev_init_mem2(lv_nuttx_fb_t * dsc)
 {
+#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+    if(dsc->pinfo.buffer[1] != NULL) {
+        dsc->mem2 = dsc->pinfo.buffer[1];
+        dsc->mem2_yoffset = 0;
+        LV_LOG_USER("Use direct framebuffer buffer[1] = %p, yoffset = 0",
+                    dsc->mem2);
+        return 0;
+    }
+
+    LV_LOG_ERROR("Non-contiguous framebuffer did not provide buffer[1]");
+    return -ENODEV;
+#else
     struct fb_planeinfo_s pinfo;
     void * phy_mem1;
     void * phy_mem2;
@@ -437,10 +490,23 @@ static int fbdev_init_mem2(lv_nuttx_fb_t * dsc)
                 dsc->mem2_yoffset);
 
     return 0;
+#endif
 }
 
 static int fbdev_init_mem3(lv_nuttx_fb_t * dsc)
 {
+#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+    if(dsc->pinfo.buffer[2] != NULL) {
+        dsc->mem3 = dsc->pinfo.buffer[2];
+        dsc->mem3_yoffset = 0;
+        LV_LOG_USER("Use direct framebuffer buffer[2] = %p, yoffset = 0",
+                    dsc->mem3);
+        return 0;
+    }
+
+    LV_LOG_ERROR("Non-contiguous framebuffer did not provide buffer[2]");
+    return -ENODEV;
+#else
     uintptr_t buf_offset;
     struct fb_planeinfo_s pinfo;
     int ret;
@@ -491,6 +557,7 @@ static int fbdev_init_mem3(lv_nuttx_fb_t * dsc)
     }
 
     return 0;
+#endif
 }
 
 static void display_release_cb(lv_event_t * e)

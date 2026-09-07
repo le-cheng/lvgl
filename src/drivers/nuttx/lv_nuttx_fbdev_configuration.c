@@ -33,7 +33,13 @@ int lv_nuttx_fbdev_enable(int fd, bool * enabled)
     config.layer_id = GRAPHICS0;
     config.remote_layer_id = FB_BUFFER_NO_REMOTE_LAYER;
     config.buffer_count = 2;
-    config.mode = FB_BUFFER_MODE_INTERNAL;
+    config.mode = FB_BUFFER_MODE_STATIC;
+#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+    /* One logical LVGL canvas spans the two physical DPU outputs. */
+    config.display_mode = FB_DISPLAY_MODE_DIFFERENT;
+#else
+    config.display_mode = FB_DISPLAY_MODE_SAME;
+#endif
 
     if(ioctl(fd, FBIO_ENABLE,
              (unsigned long)(uintptr_t)&config) < 0) {
