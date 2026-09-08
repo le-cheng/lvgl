@@ -10,14 +10,12 @@
 
 #if LV_USE_NUTTX && defined(CONFIG_ASR_DPU_DISPLAY_V3)
 
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int lv_nuttx_fbdev_enable(int fd, bool * enabled);
-void lv_nuttx_fbdev_disable(int fd, bool * enabled);
+int lv_nuttx_fbdev_enable(int fd);
+void lv_nuttx_fbdev_disable(int fd);
 
 #ifdef __cplusplus
 } /* extern "C" */

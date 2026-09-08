@@ -40,9 +40,6 @@
 typedef struct {
     /* fd should be defined at the beginning */
     int fd;
-#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
-    bool fb_enabled;
-#endif
     struct fb_videoinfo_s vinfo;
     struct fb_planeinfo_s pinfo;
 
@@ -111,7 +108,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
 
     if(dsc->fd >= 0) {
 #if defined(CONFIG_ASR_DPU_DISPLAY_V3)
-        lv_nuttx_fbdev_disable(dsc->fd, &dsc->fb_enabled);
+        lv_nuttx_fbdev_disable(dsc->fd);
 #endif
         close(dsc->fd);
     }
@@ -126,7 +123,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
     LV_LOG_USER("The framebuffer device was opened successfully");
 
 #if defined(CONFIG_ASR_DPU_DISPLAY_V3)
-    if((ret = lv_nuttx_fbdev_enable(dsc->fd, &dsc->fb_enabled)) < 0) {
+    if((ret = lv_nuttx_fbdev_enable(dsc->fd)) < 0) {
         goto errout;
     }
 #endif
@@ -152,7 +149,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
         goto errout;
     }
 
-#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+#if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
     /* The buffer slots can live in different PSRAM windows.  Use the
      * addresses reported by the driver instead of mapping one region. */
     if(dsc->pinfo.buffer[0] == NULL) {
@@ -171,12 +168,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
     }
 #endif
 
-#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
-    uint32_t w = dsc->pinfo.xres_virtual ? dsc->pinfo.xres_virtual :
-                 dsc->vinfo.xres;
-#else
     uint32_t w = dsc->vinfo.xres;
-#endif
     uint32_t h = dsc->vinfo.yres;
     uint32_t stride = dsc->pinfo.stride;
     uint32_t data_size = h * stride;
@@ -231,7 +223,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
 
 errout:
 #if defined(CONFIG_ASR_DPU_DISPLAY_V3)
-    lv_nuttx_fbdev_disable(dsc->fd, &dsc->fb_enabled);
+    lv_nuttx_fbdev_disable(dsc->fd);
 #endif
     close(dsc->fd);
     dsc->fd = -1;
@@ -336,7 +328,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     /* double framebuffer */
 
     if(dsc->mem2 != NULL) {
-#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+#if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
         uint8_t buffer_index = 0;
 
         if(disp->buf_act == disp->buf_1) {
@@ -347,13 +339,6 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
         }
         else if(disp->buf_act == disp->buf_3) {
             buffer_index = 2;
-        }
-
-        if(dsc->pinfo.buffer[buffer_index] == NULL) {
-            LV_LOG_ERROR("Non-contiguous framebuffer buffer[%u] is missing",
-                         buffer_index);
-            lv_display_flush_ready(disp);
-            return;
         }
 
         dsc->pinfo.fbmem = dsc->pinfo.buffer[buffer_index];
@@ -417,7 +402,7 @@ static int fbdev_get_pinfo(int fd, struct fb_planeinfo_s * pinfo)
 
 static int fbdev_init_mem2(lv_nuttx_fb_t * dsc)
 {
-#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+#if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
     if(dsc->pinfo.buffer[1] != NULL) {
         dsc->mem2 = dsc->pinfo.buffer[1];
         dsc->mem2_yoffset = 0;
@@ -495,7 +480,7 @@ static int fbdev_init_mem2(lv_nuttx_fb_t * dsc)
 
 static int fbdev_init_mem3(lv_nuttx_fb_t * dsc)
 {
-#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+#if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
     if(dsc->pinfo.buffer[2] != NULL) {
         dsc->mem3 = dsc->pinfo.buffer[2];
         dsc->mem3_yoffset = 0;
@@ -570,7 +555,7 @@ static void display_release_cb(lv_event_t * e)
 
         if(dsc->fd >= 0) {
 #if defined(CONFIG_ASR_DPU_DISPLAY_V3)
-            lv_nuttx_fbdev_disable(dsc->fd, &dsc->fb_enabled);
+            lv_nuttx_fbdev_disable(dsc->fd);
 #endif
             close(dsc->fd);
             dsc->fd = -1;

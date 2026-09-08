@@ -8,6 +8,7 @@
 #if LV_USE_NUTTX && defined(CONFIG_ASR_DPU_DISPLAY_V3)
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
 
@@ -20,13 +21,11 @@
 
 #include "../../../lvgl.h"
 
-int lv_nuttx_fbdev_enable(int fd, bool * enabled)
+static bool enabled;
+
+int lv_nuttx_fbdev_enable(int fd)
 {
     struct fb_buffer_config_s config;
-
-    if(enabled == NULL) {
-        return -EINVAL;
-    }
 
     lv_memzero(&config, sizeof(config));
     config.fb_index = 0;
@@ -34,7 +33,7 @@ int lv_nuttx_fbdev_enable(int fd, bool * enabled)
     config.remote_layer_id = FB_BUFFER_NO_REMOTE_LAYER;
     config.buffer_count = 2;
     config.mode = FB_BUFFER_MODE_STATIC;
-#if defined(CONFIG_ASR_DPU_FB_NONCONTIG_BUFFER)
+#if defined(CONFIG_ASR_DPU_FB_DISPLAY_MODE_DIFFERENT)
     /* One logical LVGL canvas spans the two physical DPU outputs. */
     config.display_mode = FB_DISPLAY_MODE_DIFFERENT;
 #else
@@ -47,13 +46,13 @@ int lv_nuttx_fbdev_enable(int fd, bool * enabled)
         return -errno;
     }
 
-    *enabled = true;
+    enabled = true;
     return 0;
 }
 
-void lv_nuttx_fbdev_disable(int fd, bool * enabled)
+void lv_nuttx_fbdev_disable(int fd)
 {
-    if(enabled == NULL || !*enabled) {
+    if(!enabled) {
         return;
     }
 
@@ -61,7 +60,7 @@ void lv_nuttx_fbdev_disable(int fd, bool * enabled)
         LV_LOG_WARN("ioctl(FBIO_DISABLE) for FB0 failed: %d", errno);
     }
 
-    *enabled = false;
+    enabled = false;
 }
 
 #endif /* LV_USE_NUTTX && CONFIG_ASR_DPU_DISPLAY_V3 */
