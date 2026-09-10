@@ -14,7 +14,6 @@
 
 #ifdef __NuttX__
     #include <nuttx/video/fb.h>
-    #include <nuttx/display/dpu.h>
 #else
     #include "mock/nuttx_video_fb.h"
 #endif
@@ -29,7 +28,6 @@ int lv_nuttx_fbdev_enable(int fd)
 
     lv_memzero(&config, sizeof(config));
     config.fb_index = 0;
-    config.layer_id = GRAPHICS0;
     config.remote_layer_id = FB_BUFFER_NO_REMOTE_LAYER;
     config.buffer_count = 2;
     config.mode = FB_BUFFER_MODE_STATIC;
