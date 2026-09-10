@@ -14,6 +14,8 @@
 
 #ifdef __NuttX__
     #include <nuttx/video/fb.h>
+    #include <nuttx/display/dpu.h>
+    #include <lvgldemo_layer.h>
 #else
     #include "mock/nuttx_video_fb.h"
 #endif
@@ -24,22 +26,15 @@ static bool enabled;
 
 int lv_nuttx_fbdev_enable(int fd)
 {
-    struct fb_buffer_config_s config;
-
-    lv_memzero(&config, sizeof(config));
-    config.fb_index = 0;
-    config.remote_layer_id = FB_BUFFER_NO_REMOTE_LAYER;
-    config.buffer_count = 2;
-    config.mode = FB_BUFFER_MODE_STATIC;
-#if defined(CONFIG_ASR_DPU_FB_DISPLAY_MODE_DIFFERENT)
-    /* One logical LVGL canvas spans the two physical DPU outputs. */
-    config.display_mode = FB_DISPLAY_MODE_DIFFERENT;
-#else
-    config.display_mode = FB_DISPLAY_MODE_SAME;
-#endif
+    /* FB0 的配置来自 apps/system/display_server/lvgldemo_layer.h 的配置表，
+     * 和 camera、远端 android 共用同一处配置。STATIC 模式的 buffer 由 FB
+     * 驱动的 linker section 提供，几何用面板默认值，没有运行时字段。
+     */
+    const fb_buffer_config_s * config =
+        lvgldemo_fb_config(LVGLDEMO_DISPLAY_LVGL_UI);
 
     if(ioctl(fd, FBIO_ENABLE,
-             (unsigned long)(uintptr_t)&config) < 0) {
+             (unsigned long)(uintptr_t)config) < 0) {
         LV_LOG_ERROR("ioctl(FBIO_ENABLE) for FB0 failed: %d", errno);
         return -errno;
     }
