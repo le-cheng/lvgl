@@ -28,10 +28,15 @@ int lv_nuttx_fbdev_enable(int fd)
 {
     /* FB0 的配置来自 apps/system/display_server/lvgldemo_layer.h 的配置表，
      * 和 camera、远端 android 共用同一处配置。STATIC 模式的 buffer 由 FB
-     * 驱动的 linker section 提供，几何用面板默认值，没有运行时字段。
+     * 驱动的 linker section 提供，几何尺寸也在配置表中显式提供。
      */
     const fb_buffer_config_s * config =
         lvgldemo_fb_config(LVGLDEMO_DISPLAY_LVGL_UI);
+
+    if(!lvgldemo_display_enabled(LVGLDEMO_DISPLAY_LVGL_UI)) {
+        LV_LOG_WARN("LVGL UI display disabled");
+        return -ENODEV;
+    }
 
     if(ioctl(fd, FBIO_ENABLE,
              (unsigned long)(uintptr_t)config) < 0) {
