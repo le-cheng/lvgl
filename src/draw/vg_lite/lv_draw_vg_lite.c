@@ -45,6 +45,14 @@ static void draw_event_cb(lv_event_t * e);
  *  STATIC VARIABLES
  **********************/
 
+typedef struct {
+    lv_draw_vg_lite_task_pred_cb_t pred_cb;
+    lv_draw_vg_lite_task_done_cb_t done_cb;
+    void * user_data;
+} task_sync_hook_t;
+
+static task_sync_hook_t s_task_sync_hooks[LV_DRAW_VG_LITE_TASK_SYNC_MAX];
+
 /**********************
  *      MACROS
  **********************/
@@ -86,6 +94,37 @@ void lv_draw_vg_lite_init(void)
 
 void lv_draw_vg_lite_deinit(void)
 {
+    lv_memzero(s_task_sync_hooks, sizeof(s_task_sync_hooks));
+}
+
+bool lv_draw_vg_lite_add_task_sync_cb(lv_draw_vg_lite_task_pred_cb_t pred_cb,
+                                      lv_draw_vg_lite_task_done_cb_t done_cb,
+                                      void * user_data)
+{
+    if(pred_cb == NULL) {
+        return false;
+    }
+
+    for(uint32_t i = 0; i < LV_DRAW_VG_LITE_TASK_SYNC_MAX; i++) {
+        if(s_task_sync_hooks[i].pred_cb == NULL) {
+            s_task_sync_hooks[i] = (task_sync_hook_t){pred_cb, done_cb, user_data};
+            return true;
+        }
+    }
+    return false;
+}
+
+void lv_draw_vg_lite_remove_task_sync_cb(lv_draw_vg_lite_task_pred_cb_t pred_cb,
+                                         lv_draw_vg_lite_task_done_cb_t done_cb,
+                                         void * user_data)
+{
+    for(uint32_t i = 0; i < LV_DRAW_VG_LITE_TASK_SYNC_MAX; i++) {
+        if(s_task_sync_hooks[i].pred_cb == pred_cb &&
+           s_task_sync_hooks[i].done_cb == done_cb &&
+           s_task_sync_hooks[i].user_data == user_data) {
+            s_task_sync_hooks[i] = (task_sync_hook_t){0};
+        }
+    }
 }
 
 /**********************
@@ -113,7 +152,7 @@ static bool check_arc_is_supported(const lv_draw_arc_dsc_t * dsc)
     return lv_vg_lite_is_src_cf_supported(header.cf);
 }
 
-static void draw_execute(lv_draw_vg_lite_unit_t * u)
+static void draw_execute(lv_draw_vg_lite_unit_t * u, bool force_sync)
 {
     lv_draw_task_t * t = u->task_act;
     lv_layer_t * layer = t->target_layer;
@@ -187,12 +226,21 @@ static void draw_execute(lv_draw_vg_lite_unit_t * u)
             break;
     }
 
-    lv_vg_lite_flush(u);
+    if(force_sync) {
+        /* Do not enter the normal flush-count path. finish submits every
+         * pending command, including this task, and waits for GPU completion. */
+        lv_vg_lite_finish(u);
+    }
+    else {
+        lv_vg_lite_flush(u);
+    }
 }
 
 static int32_t draw_dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
 {
     lv_draw_vg_lite_unit_t * u = (lv_draw_vg_lite_unit_t *)draw_unit;
+    bool force_sync = false;
+    bool matched[LV_DRAW_VG_LITE_TASK_SYNC_MAX] = {false};
 
     /* Return immediately if it's busy with draw task. */
     if(u->task_act) {
@@ -221,10 +269,26 @@ static int32_t draw_dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
     t->state = LV_DRAW_TASK_STATE_IN_PROGRESS;
     u->task_act = t;
 
-    draw_execute(u);
+    for(uint32_t i = 0; i < LV_DRAW_VG_LITE_TASK_SYNC_MAX; i++) {
+        if(s_task_sync_hooks[i].pred_cb &&
+           s_task_sync_hooks[i].pred_cb(t, s_task_sync_hooks[i].user_data)) {
+            matched[i] = true;
+            force_sync = true;
+        }
+    }
+    draw_execute(u, force_sync);
 
     u->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
     u->task_act = NULL;
+
+    /* draw_execute() has already waited for the GPU on the force-sync path. */
+    if(force_sync) {
+        for(uint32_t i = 0; i < LV_DRAW_VG_LITE_TASK_SYNC_MAX; i++) {
+            if(matched[i] && s_task_sync_hooks[i].done_cb) {
+                s_task_sync_hooks[i].done_cb(t, s_task_sync_hooks[i].user_data);
+            }
+        }
+    }
 
     /*The draw unit is free now. Request a new dispatching as it can get a new task*/
     lv_draw_dispatch_request();

@@ -310,6 +310,9 @@
     /** VG-Lite flush commit trigger threshold. GPU will try to batch these many draw tasks. */
     #define LV_VG_LITE_FLUSH_MAX_COUNT 8
 
+    /** Maximum number of modules that can register per-task GPU sync hooks. */
+    #define LV_DRAW_VG_LITE_TASK_SYNC_MAX 4
+
     /** Enable border to simulate shadow.
      *  NOTE: which usually improves performance,
      *  but does not guarantee the same rendering quality as the software. */

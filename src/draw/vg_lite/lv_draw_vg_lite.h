@@ -47,6 +47,17 @@ typedef struct {
 } lv_vg_lite_path_build;
 #endif
 
+/**
+ * Predicate: return true if this finished draw task requires an immediate
+ * GPU sync (bypassing the flush-count batching).
+ */
+typedef bool (* lv_draw_vg_lite_task_pred_cb_t)(lv_draw_task_t * task, void * user_data);
+
+/**
+ * Called after the GPU has finished executing all commands submitted so far,
+ * right after a task selected by lv_draw_vg_lite_task_pred_cb_t.
+ */
+typedef void (* lv_draw_vg_lite_task_done_cb_t)(lv_draw_task_t * task, void * user_data);
 
 /**********************
  * GLOBAL PROTOTYPES
@@ -58,6 +69,25 @@ bool lv_draw_buf_clear_vg_lite(lv_draw_buf_t * draw_buf, const lv_area_t * area)
 void lv_draw_vg_lite_init(void);
 
 void lv_draw_vg_lite_deinit(void);
+
+/**
+ * Register a per-task immediate sync hook.
+ *
+ * When a finished task is selected by pred_cb, the VG-Lite backend bypasses
+ * the flush-count batching: it submits all pending commands and waits for
+ * GPU completion right away, then invokes done_cb. This lets the owner of
+ * e.g. a remote shared buffer learn (and release it) as soon as the GPU is
+ * really done reading it, instead of waiting for the end of the frame.
+ *
+ * Pass NULL callbacks to unregister.
+ */
+bool lv_draw_vg_lite_add_task_sync_cb(lv_draw_vg_lite_task_pred_cb_t pred_cb,
+                                      lv_draw_vg_lite_task_done_cb_t done_cb,
+                                      void * user_data);
+
+void lv_draw_vg_lite_remove_task_sync_cb(lv_draw_vg_lite_task_pred_cb_t pred_cb,
+                                         lv_draw_vg_lite_task_done_cb_t done_cb,
+                                         void * user_data);
 
 void lv_draw_vg_lite_arc(lv_draw_task_t * t, const lv_draw_arc_dsc_t * dsc,
                          const lv_area_t * coords);

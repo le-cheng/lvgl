@@ -885,6 +885,14 @@
         #endif
     #endif
 
+    #ifndef LV_DRAW_VG_LITE_TASK_SYNC_MAX
+        #ifdef CONFIG_LV_DRAW_VG_LITE_TASK_SYNC_MAX
+            #define LV_DRAW_VG_LITE_TASK_SYNC_MAX CONFIG_LV_DRAW_VG_LITE_TASK_SYNC_MAX
+        #else
+            #define LV_DRAW_VG_LITE_TASK_SYNC_MAX 4
+        #endif
+    #endif
+
     /** Enable border to simulate shadow.
      *  NOTE: which usually improves performance,
      *  but does not guarantee the same rendering quality as the software. */
