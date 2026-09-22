@@ -42,6 +42,9 @@ typedef struct {
     int fd;
     struct fb_videoinfo_s vinfo;
     struct fb_planeinfo_s pinfo;
+#ifdef CONFIG_ASR_DPU_DISPLAY_V1
+    struct fb_getbufferinfo_s getbinfo;
+#endif
 
     void * mem;
     void * mem2;
@@ -107,7 +110,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
     lv_nuttx_fb_t * dsc = lv_display_get_driver_data(disp);
 
     if(dsc->fd >= 0) {
-#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+#ifdef CONFIG_ASR_DPU_DISPLAY_V3
         lv_nuttx_fbdev_disable(dsc->fd);
 #endif
         close(dsc->fd);
@@ -122,8 +125,12 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
     }
     LV_LOG_USER("The framebuffer device was opened successfully");
 
-#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+#ifdef CONFIG_ASR_DPU_DISPLAY_V3
     if((ret = lv_nuttx_fbdev_enable(dsc->fd)) < 0) {
+        goto errout;
+    }
+#elif defined(CONFIG_ASR_DPU_DISPLAY_V1)
+    if((ret = lv_nuttx_fbdev_set_buffer_config(dsc->fd, &dsc->getbinfo)) < 0) {
         goto errout;
     }
 #endif
@@ -149,6 +156,14 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
         goto errout;
     }
 
+#ifdef CONFIG_ASR_DPU_DISPLAY_V1
+    if(dsc->getbinfo.buffer[0] == NULL) {
+        LV_LOG_ERROR("Framebuffer did not provide buffer 0");
+        ret = -ENODEV;
+        goto errout;
+    }
+    dsc->mem = dsc->getbinfo.buffer[0];
+#else
 #if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
     /* The buffer slots can live in different PSRAM windows.  Use the
      * addresses reported by the driver instead of mapping one region. */
@@ -166,6 +181,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
         ret = -errno;
         goto errout;
     }
+#endif
 #endif
 
     uint32_t w = dsc->vinfo.xres;
@@ -222,7 +238,7 @@ int lv_nuttx_fbdev_set_file(lv_display_t * disp, const char * file)
     return 0;
 
 errout:
-#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+#ifdef CONFIG_ASR_DPU_DISPLAY_V3
     lv_nuttx_fbdev_disable(dsc->fd);
 #endif
     close(dsc->fd);
@@ -328,6 +344,22 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     /* double framebuffer */
 
     if(dsc->mem2 != NULL) {
+#ifdef CONFIG_ASR_DPU_DISPLAY_V1
+        uint8_t buffer_index = 0;
+
+        if(disp->buf_act == disp->buf_1) {
+            buffer_index = 0;
+        }
+        else if(disp->buf_act == disp->buf_2) {
+            buffer_index = 1;
+        }
+        else if(disp->buf_act == disp->buf_3) {
+            buffer_index = 2;
+        }
+
+        dsc->pinfo.fbmem = dsc->getbinfo.buffer[buffer_index];
+        dsc->pinfo.yoffset = 0;
+#else
 #if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
         uint8_t buffer_index = 0;
 
@@ -354,6 +386,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
         else if(disp->buf_act == disp->buf_3) {
             dsc->pinfo.yoffset = dsc->mem3_yoffset;
         }
+#endif
 #endif
 
         if(ioctl(dsc->fd, FBIOPAN_DISPLAY, (unsigned long)((uintptr_t) & (dsc->pinfo))) < 0) {
@@ -402,6 +435,18 @@ static int fbdev_get_pinfo(int fd, struct fb_planeinfo_s * pinfo)
 
 static int fbdev_init_mem2(lv_nuttx_fb_t * dsc)
 {
+#ifdef CONFIG_ASR_DPU_DISPLAY_V1
+    if(dsc->getbinfo.buffer[1] != NULL) {
+        dsc->mem2 = dsc->getbinfo.buffer[1];
+        dsc->mem2_yoffset = 0;
+        LV_LOG_USER("Use framebuffer buffer 1 = %p, yoffset = %" LV_PRIu32,
+                    dsc->mem2, dsc->mem2_yoffset);
+        return 0;
+    }
+
+    LV_LOG_ERROR("Framebuffer did not provide buffer 1");
+    return -ENODEV;
+#else
 #if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
     if(dsc->pinfo.buffer[1] != NULL) {
         dsc->mem2 = dsc->pinfo.buffer[1];
@@ -476,10 +521,23 @@ static int fbdev_init_mem2(lv_nuttx_fb_t * dsc)
 
     return 0;
 #endif
+#endif
 }
 
 static int fbdev_init_mem3(lv_nuttx_fb_t * dsc)
 {
+#ifdef CONFIG_ASR_DPU_DISPLAY_V1
+    if(dsc->getbinfo.buffer[2] != NULL) {
+        dsc->mem3 = dsc->getbinfo.buffer[2];
+        dsc->mem3_yoffset = 0;
+        LV_LOG_USER("Use framebuffer buffer 2 = %p, yoffset = %" LV_PRIu32,
+                    dsc->mem3, dsc->mem3_yoffset);
+        return 0;
+    }
+
+    LV_LOG_ERROR("Framebuffer did not provide buffer 2");
+    return -ENODEV;
+#else
 #if defined(CONFIG_ASR_DPU_FB_BUFFER_NONCONTIG)
     if(dsc->pinfo.buffer[2] != NULL) {
         dsc->mem3 = dsc->pinfo.buffer[2];
@@ -543,6 +601,7 @@ static int fbdev_init_mem3(lv_nuttx_fb_t * dsc)
 
     return 0;
 #endif
+#endif
 }
 
 static void display_release_cb(lv_event_t * e)
@@ -554,7 +613,7 @@ static void display_release_cb(lv_event_t * e)
         lv_display_set_flush_cb(disp, NULL);
 
         if(dsc->fd >= 0) {
-#if defined(CONFIG_ASR_DPU_DISPLAY_V3)
+#ifdef CONFIG_ASR_DPU_DISPLAY_V3
             lv_nuttx_fbdev_disable(dsc->fd);
 #endif
             close(dsc->fd);
