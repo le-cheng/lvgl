@@ -84,6 +84,8 @@ typedef enum {
     LV_OBJ_FLAG_USER_2          = (1u << 29), /**< Custom flag, free to use by user*/
 } lv_obj_flag_t;
 
+#define LV_OBJ_FLAG_SCROLL_SNAPSHOT LV_OBJ_FLAG_USER_1
+
 #if LV_USE_OBJ_PROPERTY
 enum _lv_signed_prop_id_t {
     /*OBJ flag properties */
@@ -291,6 +293,15 @@ lv_group_t * lv_obj_get_group(const lv_obj_t * obj);
  * @return      the pointer to the user_data of the object
  */
 void * lv_obj_get_user_data(lv_obj_t * obj);
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+/**
+ * check if the object has snapshot
+ * @param obj   pointer to an object
+ * @return      true: obj has snapshot; false: obj has not snapshot
+ */
+bool lv_obj_has_snapshot(lv_obj_t * obj);
+#endif
 
 /*=======================
  * Other functions

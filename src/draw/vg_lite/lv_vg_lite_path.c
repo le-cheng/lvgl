@@ -416,7 +416,7 @@ void lv_vg_lite_path_end(lv_vg_lite_path_t * path)
     LV_ASSERT_NULL(path);
     lv_vg_lite_path_reserve_space(path, 1 * path->format_len);
     lv_vg_lite_path_append_op(path, VLC_OP_END);
-    path->base.add_end = 1;
+    path->base.end_flag = 1;
 }
 
 void lv_vg_lite_path_append_rect(

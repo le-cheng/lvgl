@@ -1032,7 +1032,7 @@ extern "C" {
             case gcFEATURE_BIT_VG_IM_INDEX_FORMAT:
             case gcFEATURE_BIT_VG_BORDER_CULLING:
             case gcFEATURE_BIT_VG_RGBA2_FORMAT:
-            case gcFEATURE_BIT_VG_IM_FASTCLAER:
+            case gcFEATURE_BIT_VG_IM_FASTCLEAR:
             case gcFEATURE_BIT_VG_GLOBAL_ALPHA:
             case gcFEATURE_BIT_VG_24BIT:
             case gcFEATURE_BIT_VG_DITHER:
@@ -1054,7 +1054,7 @@ extern "C" {
 #endif
 
 #if LV_VG_LITE_THORVG_16PIXELS_ALIGN
-            case gcFEATURE_BIT_VG_16PIXELS_ALIGN:
+            case gcFEATURE_BIT_VG_16PIXELS_ALIGNED:
 #endif
                 return 1;
             default:

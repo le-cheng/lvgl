@@ -269,6 +269,18 @@ void lv_obj_redraw(lv_layer_t * layer, lv_obj_t * obj)
     LV_PROFILER_REFR_END;
 }
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+void lv_obj_redraw_snapshot(lv_layer_t * layer, lv_obj_t * obj)
+{
+    LV_PROFILER_REFR_BEGIN;
+
+    obj->rendered = 1;
+    lv_obj_send_event(obj, LV_EVENT_DRAW_MAIN, layer);
+
+    LV_PROFILER_REFR_END;
+}
+#endif
+
 lv_result_t lv_inv_area(lv_display_t * disp, const lv_area_t * area_p)
 {
     if(!disp) disp = lv_display_get_default();
@@ -473,6 +485,11 @@ lv_obj_t * lv_refr_get_top_obj(const lv_area_t * area_p, lv_obj_t * obj)
     lv_obj_send_event(obj, LV_EVENT_COVER_CHECK, &info);
     if(info.res == LV_COVER_RES_MASKED) return NULL;
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    if(lv_obj_has_snapshot(obj)) {
+        goto search_end;
+    }
+#endif
     int32_t i;
     int32_t child_cnt = lv_obj_get_child_count(obj);
     for(i = child_cnt - 1; i >= 0; i--) {
@@ -484,6 +501,10 @@ lv_obj_t * lv_refr_get_top_obj(const lv_area_t * area_p, lv_obj_t * obj)
             break;
         }
     }
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+search_end:
+#endif
 
     /*If no better children use this object*/
     if(found_p == NULL && info.res == LV_COVER_RES_COVER) {
@@ -515,6 +536,12 @@ void lv_obj_refr(lv_layer_t * layer, lv_obj_t * obj)
 
     layer->recolor = lv_obj_style_apply_recolor(obj, LV_PART_MAIN, layer->recolor);
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    if(lv_obj_has_snapshot(obj)) {
+        lv_obj_redraw_snapshot(layer, obj);
+        goto refr_obj_end;
+    }
+#endif
     lv_layer_type_t layer_type = lv_obj_get_layer_type(obj);
     if(layer_type == LV_LAYER_TYPE_NONE) {
         lv_obj_redraw(layer, obj);
@@ -606,6 +633,9 @@ void lv_obj_refr(lv_layer_t * layer, lv_obj_t * obj)
         }
     }
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+refr_obj_end:
+#endif
     /* Restore the original layer opa and recolor */
     layer->opa = layer_opa_ori;
     layer->recolor = layer_recolor;

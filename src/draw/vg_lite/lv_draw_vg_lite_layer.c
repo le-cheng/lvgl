@@ -28,7 +28,7 @@
  *  STATIC PROTOTYPES
  **********************/
 
-static bool apply_bitmap_mask_dst_in(lv_layer_t * layer,
+static bool apply_bitmap_mask_dst_in(lv_draw_unit_t * u,lv_layer_t * layer,
                                      const lv_draw_image_dsc_t * draw_dsc);
 
 /**********************
@@ -61,11 +61,13 @@ void lv_draw_vg_lite_layer(lv_draw_task_t * t, const lv_draw_image_dsc_t * draw_
     }
 
     if(draw_dsc->bitmap_mask_src != NULL) {
-        bool visible = apply_bitmap_mask_dst_in(layer, draw_dsc);
+        apply_bitmap_mask_dst_in(t->draw_unit, layer, draw_dsc);
+        /* If mask is invalid,draw directly.
         if(!visible) {
             LV_PROFILER_DRAW_END;
             return;
         }
+        */
     }
 
     lv_draw_image_dsc_t new_draw_dsc = *draw_dsc;
@@ -82,11 +84,19 @@ void lv_draw_vg_lite_layer(lv_draw_task_t * t, const lv_draw_image_dsc_t * draw_
     LV_PROFILER_DRAW_END;
 }
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+bool lv_draw_vg_lite_apply_bitmap_mask_dst_in(lv_draw_unit_t * u, lv_layer_t * layer,
+                                     const lv_draw_image_dsc_t * draw_dsc)
+{
+    return apply_bitmap_mask_dst_in(u, layer, draw_dsc);
+}
+#endif
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
 
-static bool apply_bitmap_mask_dst_in(lv_layer_t * layer,
+static bool apply_bitmap_mask_dst_in(lv_draw_unit_t * u, lv_layer_t * layer,
                                      const lv_draw_image_dsc_t * draw_dsc)
 {
     LV_PROFILER_DRAW_BEGIN;
@@ -163,19 +173,34 @@ static bool apply_bitmap_mask_dst_in(lv_layer_t * layer,
 
     vg_lite_matrix_t m;
     vg_lite_identity(&m);
+/*
+    When the layer is part area of the whole obj, if mask rect is the whole mask area, blit will overflow the target buffer.
     vg_lite_translate((vg_lite_float_t)(mask_area.x1 - layer_area.x1),
                       (vg_lite_float_t)(mask_area.y1 - layer_area.y1),
                       &m);
-
     vg_lite_rectangle_t rect = {
         .x = 0,
         .y = 0,
         .width = (int32_t)mask_w,
         .height = (int32_t)mask_h,
     };
+*/
+    /* So we use the crop area and translate. */
+    vg_lite_translate((vg_lite_float_t)(tmp.x1 - layer_area.x1),
+                      (vg_lite_float_t)(tmp.y1 - layer_area.y1),
+                      &m);
 
+    vg_lite_rectangle_t rect = {
+        .x = tmp.x1 - mask_area.x1,
+        .y = tmp.y1 - mask_area.y1,
+        .width = (int32_t)(tmp.x2 - tmp.x1 + 1),
+        .height = (int32_t)(tmp.y2 - tmp.y1 + 1),
+    };
+    vg_lite_set_scissor(0, 0, layer_target.width, layer_target.height);
     lv_vg_lite_blit_rect(&layer_target, &mask_buf, &rect, &m,
                          VG_LITE_BLEND_DST_IN, 0xFFFFFFFF, VG_LITE_FILTER_POINT);
+    lv_area_t * scissor_area = &(((lv_draw_vg_lite_unit_t *)u)->current_scissor_area);
+    vg_lite_set_scissor(scissor_area->x1, scissor_area->y1, scissor_area->x2 + 1, scissor_area->y2 + 1);
 
     if(mask_copy) lv_free(mask_copy);
     lv_image_decoder_close(&mask_decoder);

@@ -27,6 +27,7 @@
 #include "libs/fsdrv/lv_fsdrv.h"
 #include "libs/tjpgd/lv_tjpgd.h"
 #include "libs/libjpeg_turbo/lv_libjpeg_turbo.h"
+#include "libs/libjpu/lv_libjpu.h"
 #include "libs/lodepng/lv_lodepng.h"
 #include "libs/libpng/lv_libpng.h"
 #include "libs/libwebp/lv_libwebp.h"
@@ -397,6 +398,10 @@ void lv_init(void)
 
 #if LV_USE_LIBJPEG_TURBO
     lv_libjpeg_turbo_init();
+#endif
+
+#if LV_USE_LIBJPU
+    lv_libjpu_init();
 #endif
 
 #if LV_USE_LIBWEBP

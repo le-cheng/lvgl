@@ -844,7 +844,7 @@ vg_lite_error_t vg_lite_append_path(vg_lite_path_t * path,
     }
     else {
         path->path_length = offset + data_size;
-        path->add_end = 1;
+        path->end_flag = 1;
         ((uint8_t *)(path->path))[offset] = 0;
     }
 

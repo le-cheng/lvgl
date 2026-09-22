@@ -41,6 +41,10 @@ static int32_t draw_delete(lv_draw_unit_t * draw_unit);
 
 static void draw_event_cb(lv_event_t * e);
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+static void pending_draw_buf_free_cb(void * buf, void * user_data);
+#endif
+
 /**********************
  *  STATIC VARIABLES
  **********************/
@@ -90,6 +94,11 @@ void lv_draw_vg_lite_init(void)
     lv_vg_lite_path_init(unit);
     lv_vg_lite_decoder_init();
     lv_draw_vg_lite_label_init(unit);
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    unit->draw_buf_pending = lv_vg_lite_pending_create(sizeof(void *), 1);
+    lv_vg_lite_pending_set_free_cb(unit->draw_buf_pending, pending_draw_buf_free_cb, NULL);
+#endif
+    lv_draw_buf_vg_lite_init_unit(unit);
 }
 
 void lv_draw_vg_lite_deinit(void)
@@ -357,6 +366,22 @@ static int32_t draw_evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task)
                 if(!check_image_is_supported(task->draw_dsc)) {
                     return 0;
                 }
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+                const lv_draw_image_dsc_t * draw_dsc = task->draw_dsc;
+                /* bitmap_mask_src is applied on-GPU inside lv_draw_vg_lite_layer (DST_IN) */
+                switch(draw_dsc->blend_mode) {
+                    case LV_BLEND_MODE_NORMAL:
+                    case LV_BLEND_MODE_ADDITIVE:
+                    case LV_BLEND_MODE_SUBTRACTIVE:
+                    case LV_BLEND_MODE_MULTIPLY:
+                        break;
+                    default:
+                        // if(draw_dsc->blend_mode > LV_BLEND_MODE_DIFFERENCE)
+                        // LV_LOG_WARN("Unsupported blend mode (%d) in LV_DRAW_TASK_TYPE_LAYER, fallback to SW",
+                        //             (int)draw_dsc->blend_mode);
+                        return 0;
+                }
+#endif
             }
             break;
 
@@ -386,6 +411,12 @@ static int32_t draw_delete(lv_draw_unit_t * draw_unit)
     lv_vg_lite_path_deinit(unit);
     lv_vg_lite_decoder_deinit();
     lv_draw_vg_lite_label_deinit(unit);
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    lv_vg_lite_pending_destroy(unit->draw_buf_pending);
+    unit->draw_buf_pending = NULL;
+#endif
+
+    lv_draw_buf_vg_lite_init_unit(NULL);
     return 1;
 }
 
@@ -453,6 +484,11 @@ static void draw_event_cb(lv_event_t * e)
                 lv_vg_lite_event_set_scissor_area(lv_event_get_param(e));
                 break;
             }
+        case LV_EVENT_RESTORE_SCISSOR_AREA:
+            {
+                lv_vg_lite_event_restore_scissor_area(lv_event_get_param(e));
+                break;
+            }
         case LV_EVENT_PATH_CMD:
             {
                 lv_vg_lite_path_cmd_handle(lv_event_get_param(e));
@@ -463,5 +499,14 @@ static void draw_event_cb(lv_event_t * e)
             break;
     }
 }
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+static void pending_draw_buf_free_cb(void * buf, void * user_data)
+{
+    LV_UNUSED(user_data);
+    lv_draw_buf_t * draw_buf = *(void **)buf;
+    lv_draw_buf_destroy(draw_buf);
+}
+#endif
 
 #endif /*LV_USE_DRAW_VG_LITE*/

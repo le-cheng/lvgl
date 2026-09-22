@@ -337,7 +337,7 @@ vg_lite_ftable_t    s_ftable = {
         gcFEATURE_VG_SRC_ADDRESS_16BYTES_ALIGNED,
         gcFEATURE_VG_SRC_ADDRESS_64BYTES_ALIGNED,
         gcFEATURE_VG_SRC_TILE_4PIXELS_ALIGNED,
-        gcFEATURE_VG_SRC_BUF_ALINGED,
+        gcFEATURE_VG_SRC_BUF_ALIGNED,
         gcFEATURE_VG_DST_ADDRESS_64BYTES_ALIGNED,
         gcFEATURE_VG_DST_TILE_4PIXELS_ALIGNED,
         gcFEATURE_VG_DST_BUF_ALIGNED,
@@ -1210,7 +1210,7 @@ static vg_lite_error_t _check_source_aligned(vg_lite_buffer_format_t format, uin
 }
 #endif
 
-#if gcFEATURE_VG_SRC_BUF_ALINGED
+#if gcFEATURE_VG_SRC_BUF_ALIGNED
 static vg_lite_error_t _check_source_aligned_2(vg_lite_buffer_format_t format, uint32_t stride)
 {
     switch(format) {
@@ -1451,7 +1451,7 @@ vg_lite_error_t srcbuf_align_check(vg_lite_buffer_t * source)
     }
 #endif
 
-#if gcFEATURE_VG_SRC_BUF_ALINGED
+#if gcFEATURE_VG_SRC_BUF_ALIGNED
 #if gcFEATURE_VG_SRC_ADDRESS_16BYTES_ALIGNED
     if(source->format == VG_LITE_ARGB8888 ||
        source->format == VG_LITE_BGRA8888 ||
@@ -1482,7 +1482,7 @@ vg_lite_error_t srcbuf_align_check(vg_lite_buffer_t * source)
         }
 #endif
 
-#if gcFEATURE_VG_SRC_BUF_ALINGED
+#if gcFEATURE_VG_SRC_BUF_ALIGNED
         vg_lite_error_t error;
         error = _check_source_aligned_3(source->format, source->stride);
         if(error != VG_LITE_SUCCESS) {
@@ -1519,7 +1519,7 @@ vg_lite_error_t srcbuf_align_check(vg_lite_buffer_t * source)
         }
 #endif
 
-#if gcFEATURE_VG_SRC_BUF_ALINGED
+#if gcFEATURE_VG_SRC_BUF_ALIGNED
         vg_lite_error_t error;
         error = _check_source_aligned_2(source->format, source->stride);
         if(error != VG_LITE_SUCCESS) {

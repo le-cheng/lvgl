@@ -62,6 +62,8 @@ typedef void (* lv_draw_vg_lite_task_done_cb_t)(lv_draw_task_t * task, void * us
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
+void lv_draw_buf_vg_lite_init_unit(void *draw_unit);
+
 void lv_draw_buf_vg_lite_init_handlers(void);
 
 bool lv_draw_buf_clear_vg_lite(lv_draw_buf_t * draw_buf, const lv_area_t * area);
@@ -125,6 +127,11 @@ void lv_draw_vg_lite_mask_rect(lv_draw_task_t * t, const lv_draw_mask_rect_dsc_t
 
 #if LV_USE_VECTOR_GRAPHIC
 void lv_draw_vg_lite_vector(lv_draw_task_t * t, const lv_draw_vector_dsc_t * dsc);
+#endif
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+bool lv_draw_vg_lite_apply_bitmap_mask_dst_in(lv_draw_unit_t * u, lv_layer_t * layer,
+                                     const lv_draw_image_dsc_t * draw_dsc);
 #endif
 
 /**********************

@@ -427,6 +427,7 @@ const char * lv_event_code_get_name(lv_event_code_t code)
             ENUM_CASE(EVENT_DRAW_BUILD_PATH);
             ENUM_CASE(EVENT_PATH_CMD);
             ENUM_CASE(EVENT_SET_SCISSOR_AREA);
+            ENUM_CASE(EVENT_RESTORE_SCISSOR_AREA);
 #endif
         /* Special event flags */
         case LV_EVENT_LAST:

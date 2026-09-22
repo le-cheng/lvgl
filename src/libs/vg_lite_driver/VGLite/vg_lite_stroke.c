@@ -1747,7 +1747,7 @@ static vg_lite_error_t _flatten_path(
             path->path = data_pointer_use;
             path->pdata_internal = 1;
         }
-        if(path->add_end == 1) {
+        if(path->end_flag == 1) {
             stroke_conversion->add_end = 1;
         }
         else {
@@ -3854,7 +3854,7 @@ vg_lite_error_t vg_lite_update_stroke(
         stroke_conversion->fattened = 1;
     }
 
-    stroke_conversion->add_end = path->add_end;
+    stroke_conversion->add_end = path->end_flag;
 
     VG_LITE_RETURN_ERROR(_initialize_stroke_dash_parameters(stroke_conversion));
     VG_LITE_RETURN_ERROR(_flatten_path(stroke_conversion, path));
@@ -4689,7 +4689,7 @@ vg_lite_error_t vg_lite_init_arc_path(vg_lite_path_t * path,
     float * pfloat, * fpath;
     char * cpath, * pathdata;
     vg_lite_control_coord_t coords;
-    char add_end = path->add_end;
+    char add_end = path->end_flag;
     vg_lite_int32_t bytes;
     vg_lite_pointer path_data_fp32 = path_data;
     int8_t cmd, * path_data_s8_ptr;
@@ -4855,7 +4855,7 @@ vg_lite_error_t vg_lite_init_arc_path(vg_lite_path_t * path,
         path->uploaded.memory = NULL;
         return VG_LITE_SUCCESS;
     }
-    path->add_end = add_end;
+    path->end_flag = add_end;
     path->bounding_box[0] = min_x;
     path->bounding_box[1] = min_y;
     path->bounding_box[2] = max_x;

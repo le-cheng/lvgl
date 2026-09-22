@@ -610,6 +610,11 @@ menu "LVGL configuration"
 			default 512
 			depends on LV_USE_DRAW_NANOVG
 
+		config LV_DRAW_USE_SCROLL_SNAPSHOT
+			bool "Use snapshot render during scroll"
+			default n
+			depends on LV_USE_SNAPSHOT
+
 	endmenu
 
 	menu "Feature Configuration"
@@ -1512,6 +1517,10 @@ menu "LVGL configuration"
 
 		config LV_USE_LIBJPEG_TURBO
 			bool "libjpeg-turbo decoder library"
+
+		config LV_USE_LIBJPU
+			bool "JPU hardware JPEG decoder library"
+      depends on JPU
 
 		config LV_USE_LIBWEBP
 			bool "WebP decoder library"

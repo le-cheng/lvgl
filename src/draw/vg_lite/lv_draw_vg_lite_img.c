@@ -67,6 +67,35 @@ void lv_draw_vg_lite_img(lv_draw_task_t * t, const lv_draw_image_dsc_t * dsc,
         return;
     }
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    lv_draw_buf_t *bitmap_buf = NULL;
+    if(dsc->bitmap_mask_src != NULL) {
+        /* The original image data can not be modified,so need a new buf */
+        bitmap_buf = lv_draw_buf_create(decoder_dsc.decoded->header.w, decoder_dsc.decoded->header.h, decoder_dsc.decoded->header.cf, decoder_dsc.decoded->header.stride);
+        if(!bitmap_buf) {
+            LV_LOG_ERROR("no bitmap_mask memory");
+            return;
+        }
+        bitmap_buf->header.flags |= decoder_dsc.decoded->header.flags;
+
+        lv_draw_buf_copy(bitmap_buf, NULL, decoder_dsc.decoded, NULL);
+
+        lv_layer_t layer;
+        /* Do not call lv_draw_layer_init. lv_draw_layer_init will put the layer into disp layer list */
+        /* lv_draw_layer_init(&layer, NULL, decoder_dsc.decoded->header.cf, &(dsc->image_area)); */
+        layer.buf_area = dsc->image_area;
+        layer.draw_buf = bitmap_buf;
+        bool visible = lv_draw_vg_lite_apply_bitmap_mask_dst_in(t->draw_unit, &layer, dsc);
+        if(!visible) {
+            lv_draw_buf_destroy(bitmap_buf);
+            bitmap_buf = NULL;
+        } else {
+            src_buf.memory = (void *)(bitmap_buf->data);
+            src_buf.address = (uintptr_t)(bitmap_buf->data);
+        }
+    }
+#endif
+
     vg_lite_color_t color = lv_vg_lite_image_recolor(&src_buf, dsc);
 
     /* convert the blend mode to vg-lite blend mode, considering the premultiplied alpha */
@@ -112,6 +141,12 @@ void lv_draw_vg_lite_img(lv_draw_task_t * t, const lv_draw_image_dsc_t * dsc,
             blend,
             color,
             filter);
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+        if(bitmap_buf) {
+            lv_vg_lite_pending_add(u->draw_buf_pending, &bitmap_buf);
+        };
+#endif
 
         lv_vg_lite_pending_add(u->image_dsc_pending, &decoder_dsc);
         LV_PROFILER_DRAW_END;
@@ -232,6 +267,12 @@ void lv_draw_vg_lite_img(lv_draw_task_t * t, const lv_draw_image_dsc_t * dsc,
     }
 
     lv_vg_lite_path_drop(u, path);
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    if(bitmap_buf) {
+        lv_vg_lite_pending_add(u->draw_buf_pending, &bitmap_buf);
+    };
+#endif
 
     lv_vg_lite_pending_add(u->image_dsc_pending, &decoder_dsc);
     LV_PROFILER_DRAW_END;

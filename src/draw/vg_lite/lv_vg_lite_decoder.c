@@ -32,6 +32,12 @@
 
 #define SWAP_UINT16(x) ((((x) & 0x00FF) << 8) | (((x) & 0xFF00) >> 8))
 
+/**
+ * ETC2 texture types.
+ * Only ETC2 RGBA8 (16 bytes per 4x4 block) matches VG_LITE_RGBA8888_ETC2_EAC.
+ */
+#define ETC2_TYPE_RGBA8_NO_MIPMAPS      3
+
 /**********************
  *      TYPEDEFS
  **********************/
@@ -42,6 +48,18 @@ typedef struct {
     uint8_t alpha;
 } color16_alpha_t;
 
+/* ETC2 file header, all multi-byte fields are big-endian.
+ * file type is identified by the .etc2 extension. */
+typedef struct {
+    uint8_t magic[4];
+    uint8_t version[2];
+    uint8_t texture_type[2];
+    uint8_t extended_width[2];
+    uint8_t extended_height[2];
+    uint8_t width[2];
+    uint8_t height[2];
+} Etc2Header;
+
 /**********************
  *  STATIC PROTOTYPES
  **********************/
@@ -50,6 +68,8 @@ static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_d
 static lv_result_t decoder_open(lv_image_decoder_t * decoder, lv_image_decoder_dsc_t * dsc);
 static void decoder_close(lv_image_decoder_t * decoder, lv_image_decoder_dsc_t * dsc);
 static void image_color32_pre_mul(lv_color32_t * img_data, uint32_t px_size);
+static lv_result_t etc2_decoder_info(lv_image_decoder_dsc_t * dsc, lv_image_header_t * header);
+static lv_result_t etc2_decoder_open_file(lv_image_decoder_dsc_t * dsc);
 
 /**********************
  *  STATIC VARIABLES
@@ -197,8 +217,162 @@ static void set_premultiplied_flag_if_needed(lv_draw_buf_t * dest_buf, bool prem
     }
 }
 
+/**********************
+ *  ETC2 PKM HELPERS
+ **********************/
+
+/* All multi-byte fields in the PKM header are big-endian */
+static uint16_t etc2_u16be(const uint8_t * p)
+{
+    return (uint16_t)(((uint16_t)p[0] << 8) | p[1]);
+}
+
+/* read exactly size bytes, retry on short reads */
+static bool etc2_file_read_data(lv_fs_file_t * file, void * buf, uint32_t size)
+{
+    uint8_t * p = buf;
+    while(size > 0) {
+        uint32_t br = 0;
+        lv_fs_res_t res = lv_fs_read(file, p, size, &br);
+        if(res != LV_FS_RES_OK || br == 0) {
+            return false;
+        }
+        p += br;
+        size -= br;
+    }
+    return true;
+}
+
+static bool etc2_type_is_supported(uint16_t type)
+{
+    /* Only ETC2 RGBA8 (16 bytes per 4x4 block) matches VG_LITE_RGBA8888_ETC2_EAC */
+    switch(type) {
+        case ETC2_TYPE_RGBA8_NO_MIPMAPS:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool etc2_file_read_header(lv_fs_file_t * file, Etc2Header * pkm)
+{
+    if(!etc2_file_read_data(file, pkm, sizeof(Etc2Header))) {
+        LV_LOG_WARN("read ETC2 header failed");
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Parse and validate the ETC2 header. The texture data is not decoded here,
+ * it is loaded as-is and rendered by the GPU (VG_LITE_RGBA8888_ETC2_EAC).
+ */
+static bool etc2_parse_header(const Etc2Header * pkm, uint32_t * width, uint32_t * height,
+                              uint32_t * ext_width, uint32_t * ext_height)
+{
+    uint16_t type = etc2_u16be(pkm->texture_type);
+    if(!etc2_type_is_supported(type)) {
+        LV_LOG_WARN("unsupported ETC2 texture type: %d, only ETC2 RGBA8 is supported", type);
+        return false;
+    }
+
+    *ext_width = etc2_u16be(pkm->extended_width);
+    *ext_height = etc2_u16be(pkm->extended_height);
+    *width = etc2_u16be(pkm->width);
+    *height = etc2_u16be(pkm->height);
+
+    if(*width == 0 || *height == 0) {
+        LV_LOG_WARN("invalid image size: %" LV_PRIu32 "x%" LV_PRIu32, *width, *height);
+        return false;
+    }
+
+    /* the extended size is aligned to the 4x4 block size */
+    if((*ext_width) % 4 || (*ext_height) % 4 || *width > *ext_width || *height > *ext_height) {
+        LV_LOG_WARN("invalid extended size: %" LV_PRIu32 "x%" LV_PRIu32, *ext_width, *ext_height);
+        return false;
+    }
+
+    return true;
+}
+
+static lv_result_t etc2_decoder_info(lv_image_decoder_dsc_t * dsc, lv_image_header_t * header)
+{
+    /* the file is already opened by the decoder framework */
+    lv_fs_res_t fs_res = lv_fs_seek(&dsc->file, 0, LV_FS_SEEK_SET);
+    if(fs_res != LV_FS_RES_OK) {
+        return LV_RESULT_INVALID;
+    }
+
+    Etc2Header pkm;
+    if(!etc2_file_read_header(&dsc->file, &pkm)) {
+        return LV_RESULT_INVALID;
+    }
+
+    uint32_t w, h, ext_w, ext_h;
+    if(!etc2_parse_header(&pkm, &w, &h, &ext_w, &ext_h)) {
+        return LV_RESULT_INVALID;
+    }
+
+    header->w = w;
+    header->h = h;
+    header->cf = LV_COLOR_FORMAT_ETC2_EAC;
+    header->stride = 0;
+    header->flags = 0;
+    header->magic = LV_IMAGE_HEADER_MAGIC;
+    return LV_RESULT_OK;
+}
+
+static lv_result_t etc2_decoder_open_file(lv_image_decoder_dsc_t * dsc)
+{
+    lv_fs_file_t file;
+    lv_fs_res_t fs_res = lv_fs_open(&file, dsc->src, LV_FS_MODE_RD);
+    if(fs_res != LV_FS_RES_OK) {
+        LV_LOG_ERROR("open %s failed, res: %d", (const char *)dsc->src, fs_res);
+        return LV_RESULT_INVALID;
+    }
+
+    Etc2Header pkm;
+    uint32_t w, h, ext_w, ext_h;
+
+    if(!etc2_file_read_header(&file, &pkm) ||
+       !etc2_parse_header(&pkm, &w, &h, &ext_w, &ext_h)) {
+        lv_fs_close(&file);
+        return LV_RESULT_INVALID;
+    }
+
+    /* The compressed data is already aligned to the 4x4 block size at compression
+     * time and stored contiguously: (ext_w/4) * (ext_h/4) blocks * 16 bytes,
+     * i.e. ext_w * ext_h bytes (1 byte per pixel for ETC2 EAC).
+     * Read it all in one go; the logical (w x h) area is cropped by the blit rect. */
+    lv_draw_buf_t * dest_buf = lv_draw_buf_create_ex(image_cache_draw_buf_handlers,
+                                                     ext_w, ext_h, LV_COLOR_FORMAT_ETC2_EAC, ext_w);
+    if(!dest_buf) {
+        lv_fs_close(&file);
+        return LV_RESULT_INVALID;
+    }
+
+    if(!etc2_file_read_data(&file, dest_buf->data, ext_w * ext_h)) {
+        LV_LOG_ERROR("read %s ETC2 data failed", (const char *)dsc->src);
+        lv_draw_buf_destroy(dest_buf);
+        lv_fs_close(&file);
+        return LV_RESULT_INVALID;
+    }
+
+    lv_fs_close(&file);
+
+    dsc->decoded = dest_buf;
+    return LV_RESULT_OK;
+}
+
 static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_dsc_t * dsc, lv_image_header_t * header)
 {
+    /* ETC2 files are identified by the .etc2 extension (no magic header) */
+    if(dsc->src_type == LV_IMAGE_SRC_FILE
+       && !lv_strcmp(lv_fs_get_ext(dsc->src), "etc2")) {
+        return etc2_decoder_info(dsc, header);
+    }
+
     lv_result_t res = lv_bin_decoder_info(decoder, dsc, header);
     if(res != LV_RESULT_OK) {
         return res;
@@ -777,6 +951,13 @@ static lv_result_t decoder_open(lv_image_decoder_t * decoder, lv_image_decoder_d
             break;
         case LV_IMAGE_SRC_FILE: {
                 lv_fs_file_t file;
+
+                /* ETC2 compressed texture: header-only parsing, load raw data for the GPU */
+                if(dsc->header.cf == LV_COLOR_FORMAT_ETC2_EAC) {
+                    res = etc2_decoder_open_file(dsc);
+                    break;
+                }
+
                 lv_fs_res_t fs_res = lv_fs_open(&file, dsc->src, LV_FS_MODE_RD);
                 if(fs_res != LV_FS_RES_OK) {
                     LV_LOG_ERROR("open %s failed, res: %d", (const char *)dsc->src, fs_res);

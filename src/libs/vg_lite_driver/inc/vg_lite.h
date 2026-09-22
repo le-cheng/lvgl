@@ -186,7 +186,7 @@ typedef enum vg_lite_feature {
     gcFEATURE_BIT_VG_BORDER_CULLING,
     gcFEATURE_BIT_VG_RGBA2_FORMAT,
     gcFEATURE_BIT_VG_QUALITY_8X,
-    gcFEATURE_BIT_VG_IM_FASTCLAER,
+    gcFEATURE_BIT_VG_IM_FASTCLEAR,
     gcFEATURE_BIT_VG_RADIAL_GRADIENT,
     gcFEATURE_BIT_VG_GLOBAL_ALPHA,
     gcFEATURE_BIT_VG_RGBA8_ETC2_EAC,
@@ -225,15 +225,15 @@ typedef enum vg_lite_feature {
     gcFEATURE_BIT_VG_YUV_INPUT,
     gcFEATURE_BIT_VG_YUV_TILED_INPUT,
     gcFEATURE_BIT_VG_AYUV_INPUT,
-    gcFEATURE_BIT_VG_16PIXELS_ALIGN,
+    gcFEATURE_BIT_VG_16PIXELS_ALIGNED,
     gcFEATURE_BIT_VG_DEC_COMPRESS_2_0,
     gcFEATURE_BIT_VG_NV24_INPUT,
     gcFEATURE_BIT_VG_TILED_LIMIT,
-    gcFEATURE_BIT_TILED_MODE,
+    gcFEATURE_BIT_VG_TILED_MODE,
     gcFEATURE_BIT_VG_SRC_ADDRESS_16BYTES_ALIGNED,
     gcFEATURE_BIT_VG_SRC_ADDRESS_64BYTES_ALIGNED,
     gcFEATURE_BIT_VG_SRC_TILE_4PIXELS_ALIGNED,
-    gcFEATURE_BIT_VG_SRC_BUF_ALINGED,
+    gcFEATURE_BIT_VG_SRC_BUF_ALIGNED,
     gcFEATURE_BIT_VG_DST_ADDRESS_64BYTES_ALIGNED,
     gcFEATURE_BIT_VG_DST_TILE_4PIXELS_ALIGNED,
     gcFEATURE_BIT_VG_DST_BUF_ALIGNED,
@@ -899,7 +899,7 @@ typedef struct vg_lite_path {
     vg_lite_pointer stroke_path;            /*! Pointer to the physical description of the stroke path. */
     vg_lite_uint32_t stroke_size;           /*! Number of bytes in the stroke path data. */
     vg_lite_color_t stroke_color;           /*! The stroke path fill color. */
-    vg_lite_int8_t add_end;                 /*! Flag that add end_path in driver. */
+    vg_lite_int8_t end_flag;                /*! Flag that end with VLC_OP_END. */
     vg_lite_int8_t
     stroke_valid;            /*! Flag that judge whether current stroke data is come from current pathdata. */
 } vg_lite_path_t;

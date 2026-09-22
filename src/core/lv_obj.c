@@ -27,6 +27,7 @@
 #include "../tick/lv_tick.h"
 #include "../stdlib/lv_string.h"
 #include "lv_obj_draw_private.h"
+#include "../draw/snapshot/lv_snapshot.h"
 
 /*********************
  *      DEFINES
@@ -74,6 +75,11 @@ static void screen_load_on_trigger_event_cb(lv_event_t * e);
 static void screen_create_on_trigger_event_cb(lv_event_t * e);
 static void play_timeline_on_trigger_event_cb(lv_event_t * e);
 static void delete_on_screen_unloaded_event_cb(lv_event_t * e);
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+static void lv_obj_scroll_event_cb(lv_event_t * e);
+static void lv_obj_scroll_end_event_cb(lv_event_t * e);
+static void lv_obj_draw_snapshot_event_cb(lv_event_t * e);
+#endif
 
 #if LV_USE_OBJ_PROPERTY
     static lv_result_t lv_obj_set_any(lv_obj_t *, lv_prop_id_t, const lv_property_t *);
@@ -287,6 +293,13 @@ void lv_obj_add_flag(lv_obj_t * obj, lv_obj_flag_t f)
         lv_obj_invalidate_area(obj, &hor_area);
         lv_obj_invalidate_area(obj, &ver_area);
     }
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    if(f & LV_OBJ_FLAG_SCROLL_SNAPSHOT) {
+        lv_obj_add_event_cb(obj, lv_obj_scroll_event_cb, LV_EVENT_SCROLL, NULL);
+        lv_obj_add_event_cb(obj, lv_obj_scroll_end_event_cb, LV_EVENT_SCROLL_END, NULL);
+    }
+#endif
 }
 
 void lv_obj_remove_flag(lv_obj_t * obj, lv_obj_flag_t f)
@@ -548,6 +561,13 @@ void * lv_obj_get_user_data(lv_obj_t * obj)
     return obj->user_data;
 }
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+bool lv_obj_has_snapshot(lv_obj_t * obj)
+{
+    if(obj->snapshot) return true;
+    else return false;
+}
+#endif
 /**********************
  *   STATIC FUNCTIONS
  **********************/
@@ -1250,6 +1270,129 @@ static void delete_on_screen_unloaded_event_cb(lv_event_t * e)
 {
     lv_obj_delete(lv_event_get_target_obj(e));
 }
+
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+static void lv_obj_scroll_event_cb(lv_event_t * e)
+{
+    lv_obj_t *target_obj = lv_event_get_target_obj(e);
+    uint32_t child_cnt = lv_obj_get_child_count(target_obj);
+    uint32_t i;
+    for(i = 0; i < child_cnt; i++) {
+        lv_obj_t * child = target_obj->spec_attr->children[i];
+        if(!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            lv_area_t res_area;
+            if(lv_area_intersect(&res_area, &(child->coords), &(target_obj->coords))) {
+                if(!child->snapshot) {
+                    child->snapshot = lv_snapshot_take(child, LV_COLOR_FORMAT_ARGB8888);
+                    if(child->snapshot) {
+                        lv_obj_add_event_cb(child, lv_obj_draw_snapshot_event_cb, LV_EVENT_DRAW_MAIN|LV_EVENT_PREPROCESS, NULL);
+                    }
+                }
+            } else if(child->snapshot){
+                lv_draw_buf_destroy(child->snapshot);
+                child->snapshot = NULL;
+                lv_obj_remove_event_cb(child, lv_obj_draw_snapshot_event_cb);
+            }
+        }
+    }
+}
+
+static void lv_obj_scroll_end_event_cb(lv_event_t * e)
+{
+    lv_obj_t *target_obj = lv_event_get_target_obj(e);
+    if(lv_obj_is_scrolling(target_obj)) {
+        lv_dir_t scroll_dir = lv_indev_get_scroll_dir(lv_indev_active());
+        if(((scroll_dir & LV_DIR_HOR) && (LV_SCROLL_SNAP_NONE == lv_obj_get_scroll_snap_x(target_obj)))
+          ||((scroll_dir & LV_DIR_VER) && (LV_SCROLL_SNAP_NONE == lv_obj_get_scroll_snap_y(target_obj)))
+          ||(LV_DIR_NONE == scroll_dir)) {
+          }else {
+            return;
+        }
+    }
+    uint32_t child_cnt = lv_obj_get_child_count(target_obj);
+    uint32_t i;
+    for(i = 0; i < child_cnt; i++) {
+        lv_obj_t * child = target_obj->spec_attr->children[i];
+        if(child->snapshot){
+            lv_draw_buf_destroy(child->snapshot);
+            child->snapshot = NULL;
+            lv_obj_remove_event_cb(child, lv_obj_draw_snapshot_event_cb);
+        }
+    }
+    lv_obj_invalidate(target_obj);
+}
+
+static void lv_obj_draw_snapshot_event_cb(lv_event_t * e)
+{
+    lv_obj_t *target_obj = lv_event_get_target_obj(e);
+    if(target_obj->snapshot) {
+        lv_layer_t * layer = lv_event_get_layer(e);
+        lv_draw_image_dsc_t draw_dsc;
+        lv_draw_image_dsc_init(&draw_dsc);
+        lv_area_t clip_area_ori = layer->_clip_area;
+
+#if LV_DRAW_TRANSFORM_USE_MATRIX
+        lv_matrix_t layer_ori_matrix = layer->matrix;
+        lv_matrix_t *obj_matrix = lv_obj_get_transform(target_obj);
+        if(obj_matrix) {
+            lv_matrix_t matrix;
+            lv_matrix_identity(&matrix);
+            lv_matrix_translate(&matrix, target_obj->coords.x1, target_obj->coords.y1);
+            lv_matrix_multiply(&matrix, obj_matrix);
+            lv_matrix_translate(&matrix, -target_obj->coords.x1, -target_obj->coords.y1);
+            lv_matrix_t matrix_inv;
+            if(!lv_matrix_inverse(&matrix_inv, &matrix)) {
+                /* NOT draw if matrix is not invertible */
+                goto draw_end;
+            }
+            lv_matrix_multiply(&layer->matrix, &matrix);
+            lv_area_t clip_area = layer->_clip_area;
+            clip_area = lv_matrix_transform_area(&matrix_inv, &clip_area);
+            /* increase the clip area by 1 pixel to avoid rounding errors */
+            if(!lv_matrix_is_identity_or_translation(&matrix)) {
+                lv_area_increase(&clip_area, 1, 1);
+            }
+            layer->_clip_area = clip_area;
+        } else
+#endif
+        {
+            if(LV_LAYER_TYPE_TRANSFORM == lv_obj_get_layer_type(target_obj)) {
+                draw_dsc.scale_x = lv_obj_get_style_transform_scale_x(target_obj, LV_PART_MAIN);
+                draw_dsc.scale_y = lv_obj_get_style_transform_scale_y(target_obj, LV_PART_MAIN);
+                draw_dsc.rotation = lv_obj_get_style_transform_rotation(target_obj, LV_PART_MAIN);
+                lv_point_t pivot = {
+                    .x = lv_obj_get_style_transform_pivot_x(target_obj, LV_PART_MAIN),
+                    .y = lv_obj_get_style_transform_pivot_y(target_obj, LV_PART_MAIN)
+                };
+                draw_dsc.pivot.x = lv_pct_to_px(pivot.x, lv_area_get_width(&target_obj->coords));
+                draw_dsc.pivot.y = lv_pct_to_px(pivot.y, lv_area_get_height(&target_obj->coords));
+
+                draw_dsc.skew_x = lv_obj_get_style_transform_skew_x(target_obj, LV_PART_MAIN);
+                draw_dsc.skew_y = lv_obj_get_style_transform_skew_y(target_obj, LV_PART_MAIN);
+            }
+            draw_dsc.opa = lv_obj_get_style_opa_layered(target_obj, LV_PART_MAIN);
+            draw_dsc.blend_mode = lv_obj_get_style_blend_mode(target_obj, LV_PART_MAIN);
+            draw_dsc.bitmap_mask_src = lv_obj_get_style_bitmap_mask_src(target_obj, LV_PART_MAIN);
+        }
+        draw_dsc.antialias = true;
+        draw_dsc.src = target_obj->snapshot;
+        lv_obj_get_coords(target_obj, &draw_dsc.image_area);
+
+        lv_draw_image(layer, &draw_dsc, &draw_dsc.image_area);
+
+#if LV_DRAW_TRANSFORM_USE_MATRIX
+draw_end:
+        layer->matrix = layer_ori_matrix;
+#endif
+        layer->_clip_area = clip_area_ori;
+
+        /* must stop processing */
+        lv_event_stop_processing(e);
+    } else {
+        LV_ASSERT(0);
+    }
+}
+#endif
 
 #if LV_USE_OBJ_PROPERTY
 static lv_point_t lv_obj_get_scroll_end_helper(lv_obj_t * obj)

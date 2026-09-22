@@ -134,6 +134,7 @@ typedef enum {
     LV_EVENT_DRAW_BUILD_PATH,
     LV_EVENT_PATH_CMD,
     LV_EVENT_SET_SCISSOR_AREA,
+    LV_EVENT_RESTORE_SCISSOR_AREA,
 #endif
 } lv_event_code_t;
 

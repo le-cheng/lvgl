@@ -53,6 +53,8 @@
  **********************/
 
 static void image_dsc_free_cb(void * dsc, void * user_data);
+static uint32_t lv_vg_lite_stride_align_bytes(vg_lite_buffer_format_t color_format);
+static bool lv_vg_lite_stride_check_asr(const vg_lite_buffer_t * buffer);
 
 /**********************
  *  STATIC VARIABLES
@@ -175,7 +177,7 @@ const char * lv_vg_lite_feature_string(vg_lite_feature_t feature)
             FEATURE_ENUM_TO_STRING(BORDER_CULLING);
             FEATURE_ENUM_TO_STRING(RGBA2_FORMAT);
             FEATURE_ENUM_TO_STRING(QUALITY_8X);
-            FEATURE_ENUM_TO_STRING(IM_FASTCLAER);
+            FEATURE_ENUM_TO_STRING(IM_FASTCLEAR);
             FEATURE_ENUM_TO_STRING(RADIAL_GRADIENT);
             FEATURE_ENUM_TO_STRING(GLOBAL_ALPHA);
             FEATURE_ENUM_TO_STRING(RGBA8_ETC2_EAC);
@@ -214,7 +216,7 @@ const char * lv_vg_lite_feature_string(vg_lite_feature_t feature)
             FEATURE_ENUM_TO_STRING(YUV_INPUT);
             FEATURE_ENUM_TO_STRING(YUV_TILED_INPUT);
             FEATURE_ENUM_TO_STRING(AYUV_INPUT);
-            FEATURE_ENUM_TO_STRING(16PIXELS_ALIGN);
+            FEATURE_ENUM_TO_STRING(16PIXELS_ALIGNED);
             FEATURE_ENUM_TO_STRING(DEC_COMPRESS_2_0);
         default:
             break;
@@ -240,6 +242,7 @@ const char * lv_vg_lite_buffer_format_string(vg_lite_buffer_format_t format)
             VG_LITE_ENUM_TO_STRING(YUYV);
             VG_LITE_ENUM_TO_STRING(YUY2);
             VG_LITE_ENUM_TO_STRING(NV12);
+            VG_LITE_ENUM_TO_STRING(NV24);
             VG_LITE_ENUM_TO_STRING(ANV12);
             VG_LITE_ENUM_TO_STRING(AYUY2);
             VG_LITE_ENUM_TO_STRING(YV12);
@@ -361,7 +364,7 @@ void lv_vg_lite_path_dump_info(const vg_lite_path_t * path)
     LV_LOG_USER("path_changed: %d", (int)path->path_changed);
     LV_LOG_USER("pdata_internal: %d", (int)path->pdata_internal);
     LV_LOG_USER("type: %d", (int)path->path_type);
-    LV_LOG_USER("add_end: %d", (int)path->add_end);
+    LV_LOG_USER("end_flag: %d", (int)path->end_flag);
 
     if(len <= LV_VG_LITE_PATH_DUMP_MAX_LEN) {
         lv_vg_lite_path_for_each_data(path, path_data_print_cb, NULL);
@@ -539,8 +542,14 @@ bool lv_vg_lite_is_src_cf_supported(lv_color_format_t cf)
         case LV_COLOR_FORMAT_NV12:
             return vg_lite_query_feature(gcFEATURE_BIT_VG_YUV_INPUT) ? true : false;
 
+        case LV_COLOR_FORMAT_NV24:
+            return vg_lite_query_feature(gcFEATURE_BIT_VG_NV24_INPUT) ? true : false;
+
         case LV_COLOR_FORMAT_YUY2:
             return vg_lite_query_feature(gcFEATURE_BIT_VG_YUY2_INPUT) ? true : false;
+
+        case LV_COLOR_FORMAT_ETC2_EAC:
+            return vg_lite_query_feature(gcFEATURE_BIT_VG_RGBA8_ETC2_EAC) ? true : false;
 
         default:
             break;
@@ -605,8 +614,14 @@ vg_lite_buffer_format_t lv_vg_lite_vg_fmt(lv_color_format_t cf)
         case LV_COLOR_FORMAT_NV12:
             return VG_LITE_NV12;
 
+        case LV_COLOR_FORMAT_NV24:
+            return VG_LITE_NV24;
+
         case LV_COLOR_FORMAT_YUY2:
             return VG_LITE_YUY2;
+
+        case LV_COLOR_FORMAT_ETC2_EAC:
+            return VG_LITE_RGBA8888_ETC2_EAC;
 
         default:
             LV_LOG_ERROR("unsupported color format: %d", cf);
@@ -708,13 +723,67 @@ void lv_vg_lite_buffer_format_bytes(
 
 uint32_t lv_vg_lite_width_to_stride(uint32_t w, vg_lite_buffer_format_t color_format)
 {
-    if(vg_lite_query_feature(gcFEATURE_BIT_VG_16PIXELS_ALIGN)) {
+    if(vg_lite_query_feature(gcFEATURE_BIT_VG_16PIXELS_ALIGNED)) {
         w = LV_VG_LITE_ALIGN(w, 16);
     }
 
     uint32_t mul, div, align;
     lv_vg_lite_buffer_format_bytes(color_format, &mul, &div, &align);
     return LV_VG_LITE_ALIGN(((w * mul + div - 1) / div), align);
+}
+
+static uint32_t lv_vg_lite_stride_align_bytes(vg_lite_buffer_format_t color_format)
+{
+    uint32_t mul;
+    uint32_t div;
+    uint32_t align;
+
+    lv_vg_lite_buffer_format_bytes(color_format, &mul, &div, &align);
+
+    if(vg_lite_query_feature(gcFEATURE_BIT_VG_16PIXELS_ALIGNED)) {
+        uint32_t pixel_align = (16 * mul) / div;
+        if(pixel_align > align) align = pixel_align;
+    }
+
+    return align ? align : 1;
+}
+
+/*
+ * ASR 修改：检查 VGLite buffer 的 stride 是否满足硬件要求。
+ *
+ * stride 表示图像每一行在内存中实际占用的字节数，可能大于图像有效
+ * 像素对应的最小字节数。大于最小值的部分属于行尾 padding，只要满足
+ * VGLite 的对齐要求就是合法的，不能再用“stride 必须等于计算值”的规则
+ * 拒绝这类外部 framebuffer。
+ *
+ * lv_vg_lite_width_to_stride() 返回的是当前宽度和像素格式对应的最小
+ * 合法 stride；启用 gcFEATURE_BIT_VG_16PIXELS_ALIGN 后，宽度会先向上
+ * 对齐到 16 像素，因此这里的最小 stride 已包含 VGLite 的硬件宽度要求。
+ * lv_vg_lite_stride_align_bytes() 返回 stride 的字节对齐粒度；启用
+ * gcFEATURE_BIT_VG_16PIXELS_ALIGN时，该粒度至少是一个 16 像素块对应
+ * 的字节数。例如 ARGB8888 为 64字节，RGB565 为 32 字节。
+ */
+static bool lv_vg_lite_stride_check_asr(const vg_lite_buffer_t * buffer)
+{
+    /* stride 不能小于一行有效像素所需的最小字节数。 */
+    const uint32_t stride_min = lv_vg_lite_width_to_stride(buffer->width, buffer->format);
+    if(buffer->stride < 0 || (uint32_t)buffer->stride < stride_min) {
+        LV_LOG_ERROR("buffer stride(%d) < minimum(%d)", (int)buffer->stride, (int)stride_min);
+        return false;
+    }
+
+    /*
+     * 允许 stride 大于最小值，以支持每行带 padding 的物理 buffer；但
+     * padding 后的整行仍必须满足 VGLite 要求的字节对齐粒度。
+     */
+    const uint32_t stride_align_bytes = lv_vg_lite_stride_align_bytes(buffer->format);
+    if((uint32_t)buffer->stride % stride_align_bytes != 0) {
+        LV_LOG_ERROR("buffer stride(%d) is not aligned to %d bytes", (int)buffer->stride,
+                     (int)stride_align_bytes);
+        return false;
+    }
+
+    return true;
 }
 
 void lv_vg_lite_buffer_init(
@@ -763,16 +832,35 @@ void lv_vg_lite_buffer_init(
         buffer->stride = stride;
     }
 
-    if(format == VG_LITE_NV12) {
-        lv_yuv_buf_t * frame_p = (lv_yuv_buf_t *)ptr;
-        buffer->memory = (void *)frame_p->semi_planar.y.buf;
-        buffer->address = (uintptr_t)frame_p->semi_planar.y.buf;
+    if(format == VG_LITE_NV12 || format == VG_LITE_NV24) {
+        /* Continuous semi-planar layout: Y plane followed by interleaved UV.
+         * The draw buffer data is pixel data, not an lv_yuv_buf_t descriptor.
+         *
+         * NV12: Y(stride*h) + UV(stride*h/2), UV stride = stride
+         * NV24: Y(stride*h) + UV(stride*h),   UV stride = stride * 2
+         */
+        uint32_t uv_height;
+        uint32_t uv_stride;
+
+        if(format == VG_LITE_NV12) {
+            uv_height = height / 2;
+            uv_stride = stride;
+        }
+        else { /* VG_LITE_NV24 */
+            uv_height = height;
+            uv_stride = stride * 2;
+        }
+
+        uint8_t * uv_ptr = (uint8_t *)ptr + (size_t)stride * height;
+
+        buffer->memory = (void *)ptr;
+        buffer->address = (uintptr_t)ptr;
         buffer->yuv.swizzle = VG_LITE_SWIZZLE_UV;
         buffer->yuv.alpha_stride = buffer->stride;
-        buffer->yuv.uv_height = buffer->height / 2;
-        buffer->yuv.uv_memory = (void *)frame_p->semi_planar.uv.buf;
-        buffer->yuv.uv_planar = (uint32_t)(uintptr_t)frame_p->semi_planar.uv.buf;
-        buffer->yuv.uv_stride = frame_p->semi_planar.uv.stride;
+        buffer->yuv.uv_height = uv_height;
+        buffer->yuv.uv_memory = (void *)uv_ptr;
+        buffer->yuv.uv_planar = (uint32_t)(uintptr_t)uv_ptr;
+        buffer->yuv.uv_stride = uv_stride;
     }
     else {
         buffer->memory = (void *)ptr;
@@ -1089,14 +1177,7 @@ bool lv_vg_lite_buffer_check(const vg_lite_buffer_t * buffer, bool is_src)
         return false;
     }
 
-    const uint32_t stride = lv_vg_lite_width_to_stride(buffer->width, buffer->format);
-    /* Linear dest/src may have extra pitch (FB SAME: 640-wide draw in a
-     * 1280-wide line). Tiled buffers still need a tightly packed stride. */
-    if(buffer->stride < 0 ||
-       (buffer->tiled == VG_LITE_TILED
-            ? (uint32_t)buffer->stride != stride
-            : (uint32_t)buffer->stride < stride)) {
-        LV_LOG_ERROR("buffer stride(%d) != expected(%d)", (int)buffer->stride, (int)stride);
+    if(!lv_vg_lite_stride_check_asr(buffer)) {
         return false;
     }
 
@@ -1396,6 +1477,10 @@ void lv_vg_lite_flush(struct _lv_draw_vg_lite_unit_t * u)
     lv_vg_lite_pending_swap(u->bitmap_font_pending);
     lv_vg_lite_pending_swap(u->letter_pending);
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    lv_vg_lite_pending_swap(u->draw_buf_pending);
+#endif
+
     u->flush_count = 0;
     LV_PROFILER_DRAW_END;
 }
@@ -1433,6 +1518,9 @@ void lv_vg_lite_finish(struct _lv_draw_vg_lite_unit_t * u)
     lv_vg_lite_pending_remove_all(u->bitmap_font_pending);
     lv_vg_lite_pending_remove_all(u->letter_pending);
 
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    lv_vg_lite_pending_remove_all(u->draw_buf_pending);
+#endif
     /* Reset scissor area */
     lv_memzero(&u->current_scissor_area, sizeof(u->current_scissor_area));
 

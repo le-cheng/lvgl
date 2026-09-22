@@ -63,6 +63,9 @@ typedef struct _lv_draw_vg_lite_unit_t {
     vg_lite_matrix_t global_matrix;
     struct _lv_vg_lite_path_t * global_path;
     bool path_in_use;
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    struct _lv_vg_lite_pending_t * draw_buf_pending;
+#endif
 } lv_draw_vg_lite_unit_t;
 
 /**********************

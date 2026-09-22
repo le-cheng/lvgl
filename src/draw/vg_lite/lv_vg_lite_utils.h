@@ -104,6 +104,8 @@ void lv_vg_lite_path_cmd_handle(void *param);
 
 void lv_vg_lite_event_set_scissor_area(void * in);
 
+void lv_vg_lite_event_restore_scissor_area(void * in);
+
 #endif
 
 void lv_vg_lite_dump_info(void);

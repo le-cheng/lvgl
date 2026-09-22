@@ -988,6 +988,7 @@ void lv_draw_label_iterate_characters(lv_draw_task_t * t, const lv_draw_label_ds
                     goto build_path_fail;
                 }
             }
+            lv_draw_unit_send_event_to_unit(t->draw_unit, LV_EVENT_RESTORE_SCISSOR_AREA, (void *)(t->draw_unit));
             return;
         } else if (!lv_ll_is_empty(&(label->draw_unit_path))) {
             int32_t tran_x = label_pos.x;
@@ -1017,12 +1018,15 @@ void lv_draw_label_iterate_characters(lv_draw_task_t * t, const lv_draw_label_ds
             if (dsc->decor != LV_TEXT_DECOR_NONE) {
                 lv_draw_label_decor_line(dsc, label, &label_pos, align, label_w, t, cb, &t->clip_area);
             }
+            lv_draw_unit_send_event_to_unit(t->draw_unit, LV_EVENT_RESTORE_SCISSOR_AREA, (void *)(t->draw_unit));
             return;
         } else {
+            lv_draw_unit_send_event_to_unit(t->draw_unit, LV_EVENT_RESTORE_SCISSOR_AREA, (void *)(t->draw_unit));
             goto _lv_draw_;
         }
     }
 build_path_fail:
+    lv_draw_unit_send_event_to_unit(t->draw_unit, LV_EVENT_RESTORE_SCISSOR_AREA, (void *)(t->draw_unit));
 #if LV_USE_BIDI
     if (bidi_txt) {
         lv_free(bidi_txt);

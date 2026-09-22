@@ -89,6 +89,9 @@ struct _lv_obj_t {
     /** The widget is rendered at least once already.
      * It's used to skip initial animations and transitions. */
     uint16_t rendered : 1;
+#if LV_DRAW_USE_SCROLL_SNAPSHOT
+    void * snapshot;
+#endif
 };
 
 /**********************

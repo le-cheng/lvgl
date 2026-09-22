@@ -299,6 +299,41 @@ lv_cache_entry_t * lv_image_decoder_add_to_cache(lv_image_decoder_t * decoder,
     return cache_entry;
 }
 
+/*
+ * ASR 修改：检查解码后图片的 stride 是否满足 LVGL 的通用要求。
+ *
+ * stride 表示图像每一行在内存中实际占用的字节数。对于外部 framebuffer，
+ * 实际 stride 可能大于有效像素对应的最小字节数，多出来的部分是行尾
+ * padding。只要 padding 后的 stride 满足 LVGL 的对齐要求，就应保留原有
+ * buffer，避免把合法的物理行距压缩后产生额外拷贝。
+ *
+ * stride_min 由图像宽度和颜色格式计算得到，表示一行有效像素所需的最小
+ * stride；stride_align 表示 LVGL 当前配置要求的字节对齐粒度。stride 小于
+ * 最小值，或者没有按对齐粒度对齐时，函数返回 false，并通过 stride_target
+ * 输出不小于原 stride 和最小 stride 的对齐后目标值。
+ */
+static bool lv_image_decoder_stride_check_asr(const lv_draw_buf_t * decoded, uint32_t * stride_target)
+{
+    /* 计算当前图像宽度和颜色格式对应的最小合法 stride。 */
+    uint32_t stride_min = lv_draw_buf_width_to_stride(decoded->header.w, decoded->header.cf);
+
+    /* 配置值为 0 时按 1 字节处理，避免后续取模和向上取整出现除零。 */
+    uint32_t stride_align = LV_DRAW_BUF_STRIDE_ALIGN;
+    if(stride_align == 0) stride_align = 1;
+
+    /* 大于等于最小值且满足对齐要求时，允许保留带 padding 的原始 stride。 */
+    if(decoded->header.stride >= stride_min && (decoded->header.stride % stride_align) == 0) {
+        return true;
+    }
+
+    /* 目标 stride 必须同时满足最小长度和 LVGL 的字节对齐要求。 */
+    *stride_target = LV_ROUND_UP(LV_MAX(decoded->header.stride, stride_min), stride_align);
+    LV_LOG_TRACE("Stride invalid: actual=%" LV_PRIu32 ", minimum=%" LV_PRIu32
+                 ", alignment=%" LV_PRIu32 ", target=%" LV_PRIu32,
+                 decoded->header.stride, stride_min, stride_align, *stride_target);
+    return false;
+}
+
 lv_draw_buf_t * lv_image_decoder_post_process(lv_image_decoder_dsc_t * dsc, lv_draw_buf_t * decoded)
 {
     LV_PROFILER_DECODER_BEGIN;
@@ -309,13 +344,12 @@ lv_draw_buf_t * lv_image_decoder_post_process(lv_image_decoder_dsc_t * dsc, lv_d
 
     lv_image_decoder_args_t * args = &dsc->args;
     if(args->stride_align && decoded->header.cf != LV_COLOR_FORMAT_RGB565A8) {
-        uint32_t stride_expect = lv_draw_buf_width_to_stride(decoded->header.w, decoded->header.cf);
-        if(decoded->header.stride != stride_expect) {
-            LV_LOG_TRACE("Stride mismatch");
-            lv_result_t res = lv_draw_buf_adjust_stride(decoded, stride_expect);
+        uint32_t stride_target = 0;
+        if(!lv_image_decoder_stride_check_asr(decoded, &stride_target)) {
+            lv_result_t res = lv_draw_buf_adjust_stride(decoded, stride_target);
             if(res != LV_RESULT_OK) {
                 lv_draw_buf_t * aligned = lv_draw_buf_create_ex(image_cache_draw_buf_handlers, decoded->header.w, decoded->header.h,
-                                                                decoded->header.cf, stride_expect);
+                                                                decoded->header.cf, stride_target);
                 if(aligned == NULL) {
                     LV_LOG_ERROR("No memory for Stride adjust.");
                     LV_PROFILER_DECODER_END;

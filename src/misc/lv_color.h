@@ -79,6 +79,7 @@ enum _lv_opacity_level_t {
                                             (cf) == LV_COLOR_FORMAT_ARGB2222 ? 8 :  \
                                             (cf) == LV_COLOR_FORMAT_NEMA_TSC12 ? 12 : \
                                             (cf) == LV_COLOR_FORMAT_NEMA_TSC12A ? 12 : \
+                                            (cf) == LV_COLOR_FORMAT_NV12 ? 12 :     \
                                             (cf) == LV_COLOR_FORMAT_AL88 ? 16 :     \
                                             (cf) == LV_COLOR_FORMAT_RGB565 ? 16 :   \
                                             (cf) == LV_COLOR_FORMAT_RGB565_SWAPPED ? 16 :   \
@@ -88,6 +89,7 @@ enum _lv_opacity_level_t {
                                             (cf) == LV_COLOR_FORMAT_ARGB4444 ? 16 : \
                                             (cf) == LV_COLOR_FORMAT_ARGB8565 ? 24 : \
                                             (cf) == LV_COLOR_FORMAT_RGB888 ? 24 :   \
+                                            (cf) == LV_COLOR_FORMAT_NV24 ? 24 :     \
                                             (cf) == LV_COLOR_FORMAT_ARGB8888 ? 32 : \
                                             (cf) == LV_COLOR_FORMAT_ARGB8888_PREMULTIPLIED ? 32 : \
                                             (cf) == LV_COLOR_FORMAT_XRGB8888 ? 32 : \
@@ -185,7 +187,10 @@ typedef enum {
     LV_COLOR_FORMAT_YUY2              = 0x26,  /*YUV422 packed like 'Y U Y V'*/
     LV_COLOR_FORMAT_UYVY              = 0x27,  /*YUV422 packed like 'U Y V Y'*/
 
-    LV_COLOR_FORMAT_YUV_END           = LV_COLOR_FORMAT_UYVY,
+    /*YUV444 semi-planar format*/
+    LV_COLOR_FORMAT_NV24              = 0x28,  /*YUV444 planar(2 plane), UV plane in 'U, V, U, V'*/
+
+    LV_COLOR_FORMAT_YUV_END           = LV_COLOR_FORMAT_NV24,
 
     LV_COLOR_FORMAT_PROPRIETARY_START = 0x30,
 
@@ -197,6 +202,9 @@ typedef enum {
     LV_COLOR_FORMAT_NEMA_TSC12        = 0x34,
     LV_COLOR_FORMAT_NEMA_TSC12A       = 0x35,
     LV_COLOR_FORMAT_NEMA_TSC_END      = LV_COLOR_FORMAT_NEMA_TSC12A,
+
+    /*Compressed textures that are not decoded by LVGL, only passed to the GPU*/
+    LV_COLOR_FORMAT_ETC2_EAC          = 0x36,   /**< ETC2 RGB + EAC alpha, 16 bytes per 4x4 block. */
 
     /*Color formats in which LVGL can render*/
 #if LV_COLOR_DEPTH == 1

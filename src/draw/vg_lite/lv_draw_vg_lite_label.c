@@ -726,8 +726,17 @@ void lv_vg_lite_draw_unit_path(void * in)
 void lv_vg_lite_event_set_scissor_area(void * in)
 {
     lv_event_param_set_scissor_area *param = (lv_event_param_set_scissor_area *)in;
-    lv_draw_vg_lite_unit_t * u = (lv_draw_vg_lite_unit_t *)(param->t->draw_unit);
-    lv_vg_lite_set_scissor_area(u, param->scissor_area);
+    lv_layer_t * layer = param->t->target_layer;
+    lv_area_t scissor_area = *(param->scissor_area);
+    lv_area_move(&scissor_area, -layer->buf_area.x1, -layer->buf_area.y1);
+    vg_lite_set_scissor(scissor_area.x1, scissor_area.y1, scissor_area.x2 + 1, scissor_area.y2 + 1);
+}
+
+void lv_vg_lite_event_restore_scissor_area(void * in)
+{
+    lv_draw_vg_lite_unit_t * u = (lv_draw_vg_lite_unit_t *)in;
+    lv_area_t * scissor_area = &(u->current_scissor_area);
+    vg_lite_set_scissor(scissor_area->x1, scissor_area->y1, scissor_area->x2 + 1, scissor_area->y2 + 1);
 }
 #endif
 

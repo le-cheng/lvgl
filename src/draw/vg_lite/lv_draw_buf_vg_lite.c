@@ -10,7 +10,7 @@
 #include "lv_draw_vg_lite.h"
 
 #if LV_USE_DRAW_VG_LITE
-
+#include "lv_draw_vg_lite_type.h"
 #include "../lv_draw_buf_private.h"
 #include "lv_vg_lite_utils.h"
 
@@ -31,6 +31,7 @@ static void init_handlers(lv_draw_buf_handlers_t * handlers);
 /**********************
  *  STATIC VARIABLES
  **********************/
+static lv_draw_vg_lite_unit_t * vg_lite_draw_unit = NULL;
 
 /**********************
  *      MACROS
@@ -39,6 +40,10 @@ static void init_handlers(lv_draw_buf_handlers_t * handlers);
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
+void lv_draw_buf_vg_lite_init_unit(void *draw_unit)
+{
+    vg_lite_draw_unit = draw_unit;
+}
 
 void lv_draw_buf_vg_lite_init_handlers(void)
 {
@@ -50,6 +55,8 @@ void lv_draw_buf_vg_lite_init_handlers(void)
 bool lv_draw_buf_clear_vg_lite(lv_draw_buf_t * draw_buf, const lv_area_t * area)
 {
     LV_ASSERT_NULL(draw_buf);
+
+    if(!vg_lite_draw_unit) return false;
 
     if(!lv_vg_lite_is_dest_cf_supported(draw_buf->header.cf)) {
         return false;
@@ -70,11 +77,20 @@ bool lv_draw_buf_clear_vg_lite(lv_draw_buf_t * draw_buf, const lv_area_t * area)
         return false;
     }
 
+    /* change the global scissor area */
+    lv_area_t ori_scissor_area = vg_lite_draw_unit->current_scissor_area;
+    lv_vg_lite_set_scissor_area(vg_lite_draw_unit, area);
+
     vg_lite_rectangle_t rect;
     lv_vg_lite_rect(&rect, area);
     if(vg_lite_clear(&target, &rect, 0) != VG_LITE_SUCCESS) {
+        /* recover the global scissor area */
+        lv_vg_lite_set_scissor_area(vg_lite_draw_unit, &ori_scissor_area);
         return false;
     }
+
+    /* recover the global scissor area */
+    lv_vg_lite_set_scissor_area(vg_lite_draw_unit, &ori_scissor_area);
 
     /* Keep the CPU fallback contract: the buffer is ready on return. */
     if(vg_lite_finish() != VG_LITE_SUCCESS) {

@@ -186,7 +186,7 @@ typedef enum vg_lite_feature {
     gcFEATURE_BIT_VG_BORDER_CULLING,
     gcFEATURE_BIT_VG_RGBA2_FORMAT,
     gcFEATURE_BIT_VG_QUALITY_8X,
-    gcFEATURE_BIT_VG_IM_FASTCLAER,
+    gcFEATURE_BIT_VG_IM_FASTCLEAR,
     gcFEATURE_BIT_VG_RADIAL_GRADIENT,
     gcFEATURE_BIT_VG_GLOBAL_ALPHA,
     gcFEATURE_BIT_VG_RGBA8_ETC2_EAC,
@@ -225,7 +225,8 @@ typedef enum vg_lite_feature {
     gcFEATURE_BIT_VG_YUV_INPUT,
     gcFEATURE_BIT_VG_YUV_TILED_INPUT,
     gcFEATURE_BIT_VG_AYUV_INPUT,
-    gcFEATURE_BIT_VG_16PIXELS_ALIGN,
+    gcFEATURE_BIT_VG_16PIXELS_ALIGNED,
+    gcFEATURE_BIT_VG_NV24_INPUT,
     gcFEATURE_BIT_VG_DEC_COMPRESS_2_0,
     gcFEATURE_COUNT
 } vg_lite_feature_t;
@@ -368,6 +369,7 @@ typedef enum vg_lite_buffer_format {
     VG_LITE_BGRA5658_PLANAR                 = 46 | (1 << 10),
     VG_LITE_ARGB8565_PLANAR                 = 47 | (1 << 10),
     VG_LITE_RGBA5658_PLANAR                 = 48 | (1 << 10),
+    VG_LITE_NV24                            = 49 | (1 << 10),
 
     VG_LITE_INDEX_1 = 0 | (1 << 11),  /*! Indexed format. */
     VG_LITE_INDEX_2 = 1 | (1 << 11),
@@ -815,7 +817,7 @@ typedef struct vg_lite_path {
     vg_lite_pointer stroke_path;            /*! Pointer to the physical description of the stroke path. */
     vg_lite_uint32_t stroke_size;           /*! Number of bytes in the stroke path data. */
     vg_lite_color_t stroke_color;           /*! The stroke path fill color. */
-    vg_lite_int8_t add_end;                 /*! Flag that add end_path in driver. */
+    vg_lite_int8_t end_flag;                /*! Flag that end with VLC_OP_END. */
 } vg_lite_path_t;
 
 /* Color ramp definition. */

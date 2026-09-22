@@ -13,6 +13,9 @@
 #include "../misc/lv_math.h"
 #include "../misc/lv_area_private.h"
 #include "convert/lv_draw_buf_convert.h"
+#if LV_USE_DRAW_VG_LITE
+    #include "../draw/vg_lite/lv_draw_vg_lite.h"
+#endif
 
 /*********************
  *      DEFINES
@@ -169,6 +172,12 @@ void lv_draw_buf_clear(lv_draw_buf_t * draw_buf, const lv_area_t * a)
 {
     LV_ASSERT_NULL(draw_buf);
     LV_PROFILER_DRAW_BEGIN;
+
+#if LV_USE_DRAW_VG_LITE
+#ifndef CONFIG_ARCH_SIM
+    if(lv_draw_buf_clear_vg_lite(draw_buf, a)) return;
+#endif
+#endif
 
     const lv_image_header_t * header = &draw_buf->header;
     uint32_t stride = header->stride;
@@ -667,6 +676,14 @@ static uint32_t _calculate_draw_buf_size(uint32_t w, uint32_t h, lv_color_format
     size = stride * h;
     if(cf == LV_COLOR_FORMAT_RGB565A8) {
         size += (stride / 2) * h; /*A8 mask*/
+    }
+    else if(cf == LV_COLOR_FORMAT_NV12) {
+        /*Semi-planar YUV420: interleaved UV plane with half height*/
+        size += (stride * h) >> 1;
+    }
+    else if(cf == LV_COLOR_FORMAT_NV24) {
+        /*Semi-planar YUV444: interleaved UV plane, full height, 2 bytes/pixel*/
+        size += (stride * h) << 1;
     }
     else if(LV_COLOR_FORMAT_IS_INDEXED(cf)) {
         /*@todo we have to include palette right before image data*/

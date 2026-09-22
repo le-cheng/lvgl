@@ -1226,6 +1226,17 @@
     #endif
 #endif
 
+/** Use snapshot Renderer during scroll
+ * -
+ */
+#ifndef LV_DRAW_USE_SCROLL_SNAPSHOT
+    #ifdef CONFIG_LV_DRAW_USE_SCROLL_SNAPSHOT
+        #define LV_DRAW_USE_SCROLL_SNAPSHOT CONFIG_LV_DRAW_USE_SCROLL_SNAPSHOT
+    #else
+        #define LV_DRAW_USE_SCROLL_SNAPSHOT 0
+    #endif
+#endif
+
 /*=======================
  * FEATURE CONFIGURATION
  *=======================*/
@@ -3126,6 +3137,17 @@
         #define LV_USE_LIBJPEG_TURBO CONFIG_LV_USE_LIBJPEG_TURBO
     #else
         #define LV_USE_LIBJPEG_TURBO 0
+    #endif
+#endif
+
+/** JPU (CODAJ12 hardware) JPEG decoder library.
+ *  - Decodes JPEG through the /dev/jpu kernel driver via the libjpu
+ *    userspace helper. */
+#ifndef LV_USE_LIBJPU
+    #ifdef CONFIG_LV_USE_LIBJPU
+        #define LV_USE_LIBJPU CONFIG_LV_USE_LIBJPU
+    #else
+        #define LV_USE_LIBJPU 0
     #endif
 #endif
 
