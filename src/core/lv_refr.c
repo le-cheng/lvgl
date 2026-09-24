@@ -430,6 +430,20 @@ void lv_display_refr_timer(lv_timer_t * tmr)
     }
 
     lv_refr_join_area();
+#if defined(CONFIG_LV_NUTTX_DIRECT_REDRAW_SYNC)
+    lv_area_t current_areas[LV_INV_BUF_SIZE];
+    uint32_t current_count = 0;
+    for(uint32_t i = 0; i < disp_refr->inv_p; i++) {
+        if(!disp_refr->inv_area_joined[i]) current_areas[current_count++] = disp_refr->inv_areas[i];
+    }
+    bool redraw_sync = disp_refr->render_mode == LV_DISPLAY_RENDER_MODE_DIRECT &&
+                       lv_display_is_double_buffered(disp_refr) &&
+                       !lv_ll_is_empty(&disp_refr->sync_areas) &&
+                       disp_refr->inv_p > 0 && disp_refr->buf_3 == NULL;
+#if LV_DRAW_TRANSFORM_USE_MATRIX
+    redraw_sync = redraw_sync && !lv_display_get_matrix_rotation(disp_refr);
+#endif
+#endif
     refr_sync_areas();
     refr_invalid_areas();
 
@@ -438,13 +452,25 @@ void lv_display_refr_timer(lv_timer_t * tmr)
      *They will be used on the next call to synchronize the buffers.*/
     if(lv_display_is_double_buffered(disp_refr) && disp_refr->render_mode == LV_DISPLAY_RENDER_MODE_DIRECT) {
         uint32_t i;
-        for(i = 0; i < disp_refr->inv_p; i++) {
-            if(disp_refr->inv_area_joined[i])
-                continue;
-
-            lv_area_t * sync_area = lv_ll_ins_tail(&disp_refr->sync_areas);
-            *sync_area = disp_refr->inv_areas[i];
+#if defined(CONFIG_LV_NUTTX_DIRECT_REDRAW_SYNC)
+        if(redraw_sync) {
+            for(i = 0; i < current_count; i++) {
+                lv_area_t * sync_area = lv_ll_ins_tail(&disp_refr->sync_areas);
+                *sync_area = current_areas[i];
+            }
         }
+        else {
+#endif
+            for(i = 0; i < disp_refr->inv_p; i++) {
+                if(disp_refr->inv_area_joined[i])
+                    continue;
+
+                lv_area_t * sync_area = lv_ll_ins_tail(&disp_refr->sync_areas);
+                *sync_area = disp_refr->inv_areas[i];
+            }
+#if defined(CONFIG_LV_NUTTX_DIRECT_REDRAW_SYNC)
+        }
+#endif
     }
 
     lv_memzero(disp_refr->inv_areas, sizeof(disp_refr->inv_areas));
@@ -698,6 +724,14 @@ static void refr_sync_areas(void)
     /*Do not sync if no sync areas*/
     if(lv_ll_is_empty(&disp_refr->sync_areas)) return;
 
+#if defined(CONFIG_LV_NUTTX_DIRECT_REDRAW_SYNC)
+    bool redraw_sync = disp_refr->buf_3 == NULL;
+#if LV_DRAW_TRANSFORM_USE_MATRIX
+    redraw_sync = redraw_sync && !lv_display_get_matrix_rotation(disp_refr);
+#endif
+    if(redraw_sync && disp_refr->inv_p == 0) return;
+#endif
+
     LV_PROFILER_REFR_BEGIN;
     /*With double buffered direct mode synchronize the rendered areas to the other buffer*/
     /*We need to wait for ready here to not mess up the active screen*/
@@ -771,6 +805,21 @@ static void refr_sync_areas(void)
         if(!lv_area_intersect(sync_area, sync_area, &disp_area)) {
             continue;
         }
+#if defined(CONFIG_LV_NUTTX_DIRECT_REDRAW_SYNC)
+        if(redraw_sync) {
+            if(disp_refr->inv_p == LV_INV_BUF_SIZE) {
+                disp_refr->inv_areas[0] = disp_area;
+                disp_refr->inv_area_joined[0] = 0;
+                disp_refr->inv_p = 1;
+                break;
+            }
+
+            /* 原本需要拷贝的区域改为本帧脏区。 */
+            disp_refr->inv_areas[disp_refr->inv_p] = *sync_area;
+            disp_refr->inv_area_joined[disp_refr->inv_p++] = 0;
+            continue;
+        }
+#endif
 #if LV_DRAW_TRANSFORM_USE_MATRIX
         if(lv_display_get_matrix_rotation(disp_refr)) {
             lv_display_rotate_area(disp_refr, sync_area);
@@ -783,6 +832,11 @@ static void refr_sync_areas(void)
 
     /*Clear sync areas*/
     lv_ll_clear(&disp_refr->sync_areas);
+#if defined(CONFIG_LV_NUTTX_DIRECT_REDRAW_SYNC)
+    if(redraw_sync) {
+        lv_refr_join_area();
+    }
+#endif
     LV_PROFILER_REFR_END;
 }
 
